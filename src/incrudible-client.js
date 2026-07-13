@@ -6,15 +6,25 @@
 // logic (free-text search vs. a fixed link list) — that stays in each
 // app's own Client.html, calling into APP.
 
-const APP = {
+export const APP = {
 	THEME_STORAGE_KEY: "[incrudible:theme]",
 	RECORDS_STORAGE_KEY: "[incrudible:records]",
 
-	get topnav() { return document.getElementById("topnav"); },
-	get topnavToggle() { return document.getElementById("topnav-collapse-toggle"); },
-	get dropdowns() { return Array.from(document.querySelectorAll(".nav-dropdown")); },
-	get sidenav() { return document.getElementById("sidenav"); },
-	get sidenavClose() { return document.getElementById("close-sidenav"); },
+	get topnav() {
+		return document.getElementById("topnav");
+	},
+	get topnavToggle() {
+		return document.getElementById("topnav-collapse-toggle");
+	},
+	get dropdowns() {
+		return Array.from(document.querySelectorAll(".nav-dropdown"));
+	},
+	get sidenav() {
+		return document.getElementById("sidenav");
+	},
+	get sidenavClose() {
+		return document.getElementById("close-sidenav");
+	},
 	get sideNavControllers() {
 		return [
 			document.getElementById("open-sidenav"),
@@ -23,41 +33,111 @@ const APP = {
 			),
 		];
 	},
-	get notepad() { return document.getElementById("notepad"); },
-	get notepadHandle() { return document.getElementById("notepad-handle"); },
-	get closeNotepad() { return document.getElementById("close-notepad"); },
-	get openNotepad() { return document.getElementById("open-notepad"); },
-	get confirmModal() { return document.getElementById("confirm-modal"); },
-	get confirmModalClose() { return document.getElementById("confirm-modal-close"); },
-	get confirmModalCancel() { return document.getElementById("confirm-modal-cancel-button"); },
-	get confirmModalConfirm() { return document.getElementById("confirm-modal-confirm-button"); },
-	get messageModal() { return document.getElementById("message-modal"); },
-	get messageModalClose() { return document.getElementById("message-modal-close"); },
-	get messageModalDismiss() { return document.getElementById("message-modal-dismiss-button"); },
-	get feedbackDrawer() { return document.getElementById("feedback-drawer"); },
-	get openFeedbackDrawer() { return document.getElementById("open-feedback-drawer"); },
-	get closeFeedbackDrawer() { return document.getElementById("close-feedback-drawer"); },
-	get form() { return document.getElementById("app-form"); },
-	get feedbackForm() { return document.getElementById("feedback-form"); },
-	get feedbackFormControls() { return document.getElementById("feedback-form-controls"); },
-	get appAlerts() { return document.getElementById("app-alerts"); },
-	get formAlerts() { return document.getElementById("form-alerts"); },
-	get feedbackAlerts() { return document.getElementById("feedback-alerts"); },
-	get tablist() { return document.querySelector('[role="tablist"]'); },
-	get tabs() { return Array.from(this.tablist?.querySelectorAll('[role="tab"]') ?? []); },
-	get formControls() { return document.getElementById("form-controls"); },
-	get recordsList() { return document.getElementById("records-list"); },
-	get overlay() { return document.getElementById("app-overlay"); },
-	get formPreview() { return document.getElementById("form-preview"); },
-	get previewList() { return document.getElementById("preview-list"); },
-	get copyPreview() { return document.getElementById("copy-preview"); },
-	get departmentBrand() { return document.querySelector(".brand"); },
-	get toastContainer() { return document.getElementById("toast-container"); },
-	get themeToggle() { return document.getElementById("theme-toggle"); },
-	get messageModalHeader() { return document.getElementById("message-modal-header"); },
-	get messageModalMessage() { return document.getElementById("message-modal-message"); },
-	get confirmModalHeader() { return document.getElementById("confirm-modal-header"); },
-	get confirmModalMessage() { return document.getElementById("confirm-modal-message"); },
+	get notepad() {
+		return document.getElementById("notepad");
+	},
+	get notepadHandle() {
+		return document.getElementById("notepad-handle");
+	},
+	get closeNotepad() {
+		return document.getElementById("close-notepad");
+	},
+	get openNotepad() {
+		return document.getElementById("open-notepad");
+	},
+	get confirmModal() {
+		return document.getElementById("confirm-modal");
+	},
+	get confirmModalClose() {
+		return document.getElementById("confirm-modal-close");
+	},
+	get confirmModalCancel() {
+		return document.getElementById("confirm-modal-cancel-button");
+	},
+	get confirmModalConfirm() {
+		return document.getElementById("confirm-modal-confirm-button");
+	},
+	get messageModal() {
+		return document.getElementById("message-modal");
+	},
+	get messageModalClose() {
+		return document.getElementById("message-modal-close");
+	},
+	get messageModalDismiss() {
+		return document.getElementById("message-modal-dismiss-button");
+	},
+	get feedbackDrawer() {
+		return document.getElementById("feedback-drawer");
+	},
+	get openFeedbackDrawer() {
+		return document.getElementById("open-feedback-drawer");
+	},
+	get closeFeedbackDrawer() {
+		return document.getElementById("close-feedback-drawer");
+	},
+	get form() {
+		return document.getElementById("app-form");
+	},
+	get feedbackForm() {
+		return document.getElementById("feedback-form");
+	},
+	get feedbackFormControls() {
+		return document.getElementById("feedback-form-controls");
+	},
+	get appAlerts() {
+		return document.getElementById("app-alerts");
+	},
+	get formAlerts() {
+		return document.getElementById("form-alerts");
+	},
+	get feedbackAlerts() {
+		return document.getElementById("feedback-alerts");
+	},
+	get tablist() {
+		return document.querySelector('[role="tablist"]');
+	},
+	get tabs() {
+		return Array.from(this.tablist?.querySelectorAll('[role="tab"]') ?? []);
+	},
+	get formControls() {
+		return document.getElementById("form-controls");
+	},
+	get recordsList() {
+		return document.getElementById("records-list");
+	},
+	get overlay() {
+		return document.getElementById("app-overlay");
+	},
+	get formPreview() {
+		return document.getElementById("form-preview");
+	},
+	get previewList() {
+		return document.getElementById("preview-list");
+	},
+	get copyPreview() {
+		return document.getElementById("copy-preview");
+	},
+	get departmentBrand() {
+		return document.querySelector(".brand");
+	},
+	get toastContainer() {
+		return document.getElementById("toast-container");
+	},
+	get themeToggle() {
+		return document.getElementById("theme-toggle");
+	},
+	get messageModalHeader() {
+		return document.getElementById("message-modal-header");
+	},
+	get messageModalMessage() {
+		return document.getElementById("message-modal-message");
+	},
+	get confirmModalHeader() {
+		return document.getElementById("confirm-modal-header");
+	},
+	get confirmModalMessage() {
+		return document.getElementById("confirm-modal-message");
+	},
 
 	// Active workflow's rule maps, plus feedback's own. Each app's own
 	// mountWorkflow/resetWorkflow, and each app's own feedback-init line,
@@ -72,6 +152,316 @@ const APP = {
 		feedbackWizardRules: {},
 		feedbackAlertRules: {},
 		feedbackModalRules: {},
+	},
+
+	workflowLabel: "",
+
+	// The active workflow — a rich alert object for queue, a plain label
+	// string for static. Each app's own mountWorkflow/resetWorkflow read
+	// and write this; it's a real accessor (not a plain data property) so
+	// that access always goes through APP rather than reaching into
+	// _internals directly.
+	get workflow() {
+		return APP._internals.workflow;
+	},
+	set workflow(value) {
+		APP._internals.workflow = value;
+	},
+
+	init: ({
+		feedback,
+		workflowLabel = "",
+		onWorkflowLoaded,
+		onAppInit,
+		onFormReset,
+		onRecordsTab,
+	} = {}) => {
+		APP.workflowLabel = workflowLabel;
+
+		if (feedback) {
+			APP.rules.feedbackWizardRules = feedback?.rules?.wizards || {};
+			APP.rules.feedbackAlertRules = feedback?.rules?.alerts || {};
+			APP.rules.feedbackModalRules = feedback?.rules?.modals || {};
+
+			APP.feedbackFormControls.replaceChildren(
+				APP.renderEntries(feedback.schema),
+			);
+		}
+
+		if (localStorage.getItem(APP.THEME_STORAGE_KEY)) {
+			document.documentElement.dataset.theme = APP.theme;
+		}
+
+		if (APP.themeToggle) {
+			APP.themeToggle.checked = APP.theme === "dark";
+		}
+
+		APP.tabs.forEach((tab, index) => {
+			tab.addEventListener("click", () =>
+				APP.navigator.selectTab(tab.dataset.tabId),
+			);
+
+			tab.addEventListener("keydown", e => {
+				const last = APP.tabs.length - 1;
+				let next = null;
+
+				switch (e.key) {
+					case "ArrowRight": {
+						next = index === last ? 0 : index + 1;
+						break;
+					}
+					case "ArrowLeft": {
+						next = index === 0 ? last : index - 1;
+						break;
+					}
+					case "Home": {
+						next = 0;
+						break;
+					}
+					case "End": {
+						next = last;
+						break;
+					}
+					default:
+						return;
+				}
+
+				e.preventDefault();
+				APP.navigator.selectTab(APP.tabs[next].dataset.tabId);
+				APP.tabs[next].focus();
+			});
+		});
+
+		APP.dropdowns.forEach(dropdown => {
+			dropdown
+				.querySelector(".dropdown-button")
+				?.addEventListener("click", () => APP.toggleDropdown(dropdown));
+		});
+
+		APP.topnavToggle?.addEventListener("click", () =>
+			APP.topnav?.classList.toggle("expanded"),
+		);
+
+		APP.sideNavControllers.forEach(element =>
+			element?.addEventListener("click", () =>
+				APP.sidenav?.classList.add("open"),
+			),
+		);
+
+		APP.sidenavClose?.addEventListener("click", () =>
+			APP.sidenav?.classList.remove("open"),
+		);
+
+		APP.openFeedbackDrawer?.addEventListener("click", () =>
+			APP.feedbackDrawer?.classList.add("open"),
+		);
+
+		APP.closeFeedbackDrawer?.addEventListener("click", () => {
+			APP.feedbackDrawer?.classList.remove("open");
+			APP.feedbackForm?.reset();
+		});
+
+		APP.closeNotepad?.addEventListener("click", () =>
+			APP.notepad.classList.add("closed"),
+		);
+		APP.openNotepad?.addEventListener("click", () =>
+			APP.notepad.classList.remove("closed"),
+		);
+
+		// Draggable notepad — grab the header to move it (mouse + touch)
+		APP.notepadHandle?.addEventListener("pointerdown", event => {
+			if (event.button !== 0 || event.target === APP.closeNotepad) {
+				return;
+			}
+
+			const rect = APP.notepad.getBoundingClientRect();
+			const grabX = event.clientX - rect.left;
+			const grabY = event.clientY - rect.top;
+
+			// Hand off from the initial right-anchored spot to left/top
+			APP.notepad.style.right = "auto";
+			APP.notepad.style.bottom = "auto";
+
+			const onPointerMove = move => {
+				APP.notepad.style.left = move.clientX - grabX + "px";
+				APP.notepad.style.top = move.clientY - grabY + "px";
+			};
+
+			const onPointerUp = up => {
+				APP.notepadHandle.releasePointerCapture(up.pointerId);
+				APP.notepadHandle.removeEventListener("pointermove", onPointerMove);
+				APP.notepadHandle.removeEventListener("pointerup", onPointerUp);
+			};
+
+			APP.notepadHandle.setPointerCapture(event.pointerId);
+			APP.notepadHandle.addEventListener("pointermove", onPointerMove);
+			APP.notepadHandle.addEventListener("pointerup", onPointerUp);
+		});
+
+		[APP.messageModalDismiss, APP.messageModalClose].forEach(button =>
+			button?.addEventListener("click", () => APP.messageModal.close()),
+		);
+
+		APP.confirmModalConfirm?.addEventListener("click", () =>
+			APP.confirmModal.close("confirm"),
+		);
+		[APP.confirmModalCancel, APP.confirmModalClose].forEach(button =>
+			button?.addEventListener("click", () => APP.confirmModal.close("cancel")),
+		);
+
+		document.addEventListener("click", event => {
+			APP.dropdowns
+				.filter(dropdown => !dropdown.contains(event.target))
+				.forEach(dropdown => APP.toggleDropdown(dropdown, false));
+		});
+
+		document.addEventListener("keydown", event => {
+			if (event.key === "Escape") {
+				APP.dropdowns.forEach(dropdown => APP.toggleDropdown(dropdown, false));
+			}
+		});
+
+		APP.confirmModal?.addEventListener("close", () => {
+			APP.publish(
+				APP.confirmModal.returnValue === "confirm"
+					? "confirm:accepted"
+					: "confirm:cancelled",
+				APP._internals.confirmDetail,
+			);
+			APP._internals.confirmDetail = undefined;
+			APP.publish("modal:closed");
+		});
+
+		APP.messageModal?.addEventListener("close", () =>
+			APP.publish("modal:closed"),
+		);
+
+		// Delegated: copy buttons embedded in notify() message markup, e.g.
+		// the feedback:submitted subscriber's record-ID copy button below.
+		APP.messageModal?.addEventListener("click", async e => {
+			const button = e.target.closest(".copy-button");
+
+			if (!button) {
+				return;
+			}
+
+			try {
+				await navigator.clipboard.writeText(button.dataset.copy);
+				APP.toast("Copied to clipboard.", "tip");
+			} catch (_e) {
+				APP.toast("Couldn't copy to clipboard.", "caution");
+			}
+		});
+
+		APP.form?.addEventListener("reset", () =>
+			requestAnimationFrame(() => {
+				onFormReset?.();
+			}),
+		);
+
+		APP.feedbackForm?.addEventListener("input", event =>
+			APP._internals.form.syncWizards(event, APP.feedbackForm),
+		);
+
+		APP.feedbackForm?.addEventListener("change", event => {
+			APP._internals.form.syncWizards(event, APP.feedbackForm);
+			APP._internals.form.syncModals(event);
+			APP._internals.form.syncAlerts(event);
+		});
+
+		APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+
+		APP.feedbackForm?.addEventListener("reset", () =>
+			requestAnimationFrame(() => {
+				APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+				APP.feedbackAlerts.replaceChildren();
+			}),
+		);
+
+		APP.feedbackForm?.addEventListener("submit", e => {
+			e.preventDefault();
+
+			if (!APP.feedbackForm.reportValidity()) {
+				return;
+			}
+
+			APP.runServer(
+				"submitFeedback",
+				[
+					{
+						formData: [
+							...new FormData(APP.feedbackForm),
+							["userAgent", navigator.userAgent],
+							["url", location.href],
+							["workflow", APP.workflowLabel],
+						],
+					},
+				],
+				{
+					prefix: "Couldn't submit feedback: ",
+					onData: record => {
+						APP._internals.feedback.records?.unshift(record);
+						APP.publish("feedback:submitted", record);
+					},
+				},
+			);
+		});
+
+		APP.copyPreview?.addEventListener("click", async () => {
+			const rowText = APP._internals.form.preview
+				.map(([label, value]) => `${label}: ${value}`)
+				.join(" | ");
+
+			if (!rowText) {
+				return;
+			}
+
+			const text = [
+				APP.departmentBrand.textContent,
+				APP.workflowLabel,
+				rowText,
+			].join(" | ");
+
+			try {
+				await navigator.clipboard.writeText(text);
+				APP.toast("Copied to clipboard.", "tip");
+			} catch (_e) {
+				APP.toast("Couldn't copy to clipboard.", "caution");
+			}
+		});
+
+		APP.themeToggle?.addEventListener("change", () => {
+			APP.theme = APP.themeToggle.checked ? "dark" : "light";
+		});
+
+		APP.subscribe("overlay:show", () => APP.overlay?.classList.add("active"));
+
+		APP.subscribe("overlay:hide", () =>
+			APP.overlay?.classList.remove("active"),
+		);
+
+		APP.subscribe("tab:change", ({ id }) => {
+			if (id === "panel-records") {
+				onRecordsTab?.();
+			}
+		});
+
+		APP.subscribe("record:created", () => {
+			APP.form?.reset();
+			APP.toast("Submission received.", "tip");
+		});
+
+		APP.subscribe("feedback:submitted", record => {
+			APP.feedbackForm?.reset();
+			APP.notify(
+				`Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
+				{ header: "Feedback submitted", variant: "tip" },
+			);
+		});
+
+		APP.subscribe("workflow:loaded", data => onWorkflowLoaded?.(data));
+
+		APP.subscribe("app:init", onInit => onAppInit?.(onInit));
 	},
 
 	renderFormControl: (entry, rule) => {
@@ -367,9 +757,7 @@ const APP = {
 			return fieldset;
 		}
 
-		if (
-			!(entry.wizards && entry.wizards.length && entry.type !== "textarea")
-		) {
+		if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
 			return APP.renderFormControl(entry, rule);
 		}
 
@@ -575,11 +963,7 @@ const APP = {
 				return this.inputs.filter(control => control.type === "email");
 			},
 			get formControls() {
-				return [
-					...this.inputs,
-					...this.dropdowns,
-					...this.textAreas,
-				]
+				return [...this.inputs, ...this.dropdowns, ...this.textAreas];
 			},
 			get inputs() {
 				return this.elements.filter(
@@ -592,8 +976,7 @@ const APP = {
 			get numberInputs() {
 				return this.inputs.filter(
 					control =>
-						control.type === "number" &&
-						control.dataset.type !== "currency",
+						control.type === "number" && control.dataset.type !== "currency",
 				);
 			},
 			get passwordInputs() {
@@ -624,8 +1007,7 @@ const APP = {
 								.join(", ");
 						} else {
 							const option = control.selectedOptions[0];
-							value =
-								option && option.value ? option.textContent.trim() : "";
+							value = option && option.value ? option.textContent.trim() : "";
 						}
 					} else {
 						value = control.value;
@@ -706,9 +1088,9 @@ const APP = {
 				}
 
 				const isFeedback = target.form === APP.feedbackForm;
-				const activeRules = (isFeedback
-					? APP.rules.feedbackAlertRules
-					: APP.rules.alertRules)[target.name];
+				const activeRules = (
+					isFeedback ? APP.rules.feedbackAlertRules : APP.rules.alertRules
+				)[target.name];
 
 				if (!activeRules) {
 					return;
@@ -736,9 +1118,11 @@ const APP = {
 					return;
 				}
 
-				const activeRules = (target.form === APP.feedbackForm
-					? APP.rules.feedbackModalRules
-					: APP.rules.modalRules)[target.name];
+				const activeRules = (
+					target.form === APP.feedbackForm
+						? APP.rules.feedbackModalRules
+						: APP.rules.modalRules
+				)[target.name];
 
 				if (!activeRules) {
 					return;
@@ -786,9 +1170,9 @@ const APP = {
 						const show =
 							APP._internals.match(rule.test, values) &&
 							APP._internals.dependenciesMet(
-							new Map(rule.dependencies),
-							targetForm,
-						);
+								new Map(rule.dependencies),
+								targetForm,
+							);
 
 						wizard.hidden = !show;
 
@@ -815,8 +1199,7 @@ const APP = {
 				if (!target) {
 					wizards
 						.filter(
-							fieldset =>
-								!fieldset.parentElement?.closest("fieldset.wizard"),
+							fieldset => !fieldset.parentElement?.closest("fieldset.wizard"),
 						)
 						.forEach(syncFieldset);
 					return;
@@ -824,9 +1207,7 @@ const APP = {
 
 				wizards
 					.filter(fieldset => {
-						const controller = fieldset.querySelector(
-							":scope > .form-control",
-						);
+						const controller = fieldset.querySelector(":scope > .form-control");
 
 						return controller?.htmlFor === target.id;
 					})
@@ -846,7 +1227,7 @@ const APP = {
 			}
 
 			if (typeof test === "boolean") {
-				return (values.length > 0) === test;
+				return values.length > 0 === test;
 			}
 
 			const match = /^\/(.*)\/([a-z]*)$/.exec(test);
@@ -860,13 +1241,7 @@ const APP = {
 			headerElement.innerHTML = marked.parseInline(header);
 			APP.parse(messageElement, message);
 
-			for (const name of [
-				"note",
-				"tip",
-				"important",
-				"warning",
-				"caution",
-			]) {
+			for (const name of ["note", "tip", "important", "warning", "caution"]) {
 				dialog.classList.toggle(`modal-${name}`, name === variant);
 			}
 		},
@@ -882,6 +1257,25 @@ const APP = {
 			return true;
 		},
 	},
+
+	// Public proxies onto _internals — third parties (each app's own
+	// Client.html) call these instead of reaching into _internals directly.
+	get records() {
+		return APP._internals.records;
+	},
+	syncFeedbackRecords: () => {
+		APP._internals.feedback.syncRecords();
+	},
+	showModal: modal => {
+		return APP._internals.showModal(modal);
+	},
+	match: (test, values) => {
+		return APP._internals.match(test, values);
+	},
+	get formHelpers() {
+		return APP._internals.form;
+	},
+
 	context: {
 		get recordsMessage() {
 			return APP.recordsList?.textContent;
@@ -1035,5 +1429,3 @@ const APP = {
 		APP._internals.bus.unsubscribe(event, callback);
 	},
 };
-
-export { APP };
