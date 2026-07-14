@@ -378,38 +378,9 @@ export const APP = {
 			}),
 		);
 
-		APP.feedbackForm?.addEventListener("submit", e => {
-			e.preventDefault();
-
-			if (!APP.feedbackForm.reportValidity()) {
-				return;
-			}
-
-			APP.runServer(
-				"submitFeedback",
-				[
-					{
-						formData: [
-							...new FormData(APP.feedbackForm),
-							["userAgent", navigator.userAgent],
-							["url", location.href],
-							["workflow", APP.workflowLabel],
-						],
-					},
-				],
-				{
-					prefix: "Couldn't submit feedback: ",
-					onData: record => {
-						APP._internals.feedback.records?.unshift(record);
-						APP.publish("feedback:submitted", record);
-					},
-				},
-			);
-		});
-
 		APP.copyPreview?.addEventListener("click", async () => {
 			const rowText = APP._internals.form.preview
-				.map(([label, value]) => `${label}: ${value}`)
+				.map(([, label, value]) => `${label}: ${value}`)
 				.join(" | ");
 
 			if (!rowText) {
@@ -452,6 +423,7 @@ export const APP = {
 		});
 
 		APP.subscribe("feedback:submitted", record => {
+			APP._internals.feedback.records?.unshift(record);
 			APP.feedbackForm?.reset();
 			APP.notify(
 				`Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
@@ -462,6 +434,44 @@ export const APP = {
 		APP.subscribe("workflow:loaded", data => onWorkflowLoaded?.(data));
 
 		APP.subscribe("app:init", onInit => onAppInit?.(onInit));
+	},
+
+	// Bare <input> builder shared by renderFormControl's labeled-control path
+	// and by list-control entries (which need their own id/name per entry,
+	// so they can't go through renderFormControl/applyShared directly).
+	buildInput: (type, constraints = {}, value) => {
+		const input = document.createElement("input");
+		input.type = type === "currency" ? "text" : type;
+
+		if (type === "currency" || type === "number") {
+			input.dataset.type = type;
+		}
+
+		if (value != null) {
+			input.defaultValue = value;
+		}
+
+		if (constraints.minLength != null) {
+			input.minLength = constraints.minLength;
+		}
+
+		if (constraints.maxLength != null) {
+			input.maxLength = constraints.maxLength;
+		}
+
+		if (constraints.pattern) {
+			input.pattern = constraints.pattern;
+		}
+
+		if (constraints.min != null) {
+			input.min = constraints.min;
+		}
+
+		if (constraints.max != null) {
+			input.max = constraints.max;
+		}
+
+		return input;
 	},
 
 	renderFormControl: (entry, rule) => {
@@ -499,18 +509,9 @@ export const APP = {
 			case "currency":
 			case "number":
 			case "date": {
-				const input = document.createElement("input");
-				input.type = entry.type === "currency" ? "number" : entry.type;
-
-				if (entry.type === "currency" || entry.type === "number") {
-					input.dataset.type = entry.type;
-				}
+				const input = APP.buildInput(entry.type, v, val);
 
 				applyShared(input);
-
-				if (val != null) {
-					input.defaultValue = val;
-				}
 
 				if (entry.placeholder) {
 					input.placeholder = entry.placeholder;
@@ -528,26 +529,6 @@ export const APP = {
 					input.inputMode = entry.inputMode;
 				} else if (entry.type === "currency") {
 					input.inputMode = "decimal";
-				}
-
-				if (v.minLength != null) {
-					input.minLength = v.minLength;
-				}
-
-				if (v.maxLength != null) {
-					input.maxLength = v.maxLength;
-				}
-
-				if (v.pattern) {
-					input.pattern = v.pattern;
-				}
-
-				if (v.min != null) {
-					input.min = v.min;
-				}
-
-				if (v.max != null) {
-					input.max = v.max;
 				}
 
 				const icon = document.createElement("i");
@@ -709,7 +690,11 @@ export const APP = {
 		if (entry.hint) {
 			const tooltip = document.createElement("span");
 			tooltip.className = "tooltip";
-			tooltip.append("?");
+
+			const tooltipIcon = document.createElement("i");
+			tooltipIcon.className = "tooltip-icon";
+			tooltipIcon.setAttribute("aria-hidden", "true");
+			tooltip.append(tooltipIcon);
 
 			const tooltipText = document.createElement("span");
 			tooltipText.className = "tooltip-text";
@@ -738,6 +723,138 @@ export const APP = {
 	},
 
 	renderEntry: (entry, rule) => {
+		if (entry.type === "list" || entry.type.startsWith("list:")) {
+			const itemType = entry.type === "list" ? "text" : entry.type.slice(5);
+			const v = entry.constraints || {};
+
+			const fieldset = document.createElement("fieldset");
+			fieldset.className = `list w-${entry.width || 1}`;
+			fieldset.id = entry.id;
+			fieldset.dataset.name = entry.name;
+
+			if (itemType !== "text") {
+				fieldset.dataset.type = itemType;
+			}
+
+			if (entry.disabled) {
+				fieldset.disabled = true;
+			}
+
+			if (rule) {
+				fieldset.hidden = true;
+			}
+
+			if (v.required) {
+				fieldset.dataset.required = "true";
+			}
+
+			if (v.minLength != null) {
+				fieldset.dataset.minLength = v.minLength;
+			}
+
+			if (v.maxLength != null) {
+				fieldset.dataset.maxLength = v.maxLength;
+			}
+
+			if (v.pattern) {
+				fieldset.dataset.pattern = v.pattern;
+			}
+
+			if (v.min != null) {
+				fieldset.dataset.min = v.min;
+			}
+
+			if (v.max != null) {
+				fieldset.dataset.max = v.max;
+			}
+
+			const label = document.createElement("label");
+			label.className = "form-control";
+
+			const toolbar = document.createElement("span");
+			toolbar.className = "label-toolbar";
+
+			const labelText = document.createElement("span");
+			labelText.className = "label-text";
+			labelText.innerHTML = entry.label;
+			toolbar.append(labelText);
+
+			if (entry.hint) {
+				const tooltip = document.createElement("span");
+				tooltip.className = "tooltip";
+
+				const tooltipIcon = document.createElement("i");
+				tooltipIcon.className = "tooltip-icon";
+				tooltipIcon.setAttribute("aria-hidden", "true");
+				tooltip.append(tooltipIcon);
+
+				const tooltipText = document.createElement("span");
+				tooltipText.className = "tooltip-text";
+				tooltipText.innerHTML = entry.hint;
+
+				tooltip.append(tooltipText);
+				toolbar.append(tooltip);
+			}
+
+			const list = document.createElement("ul");
+
+			// Builds one entry <li>. Reused for the always-present first entry
+			// (not removable) and for every entry the "Add" button creates
+			// later (removable) - both need the exact same input construction,
+			// just closing over this one render's entry/itemType/v rather than
+			// round-tripping through the fieldset's dataset.
+			const buildEntry = (index, removable) => {
+				const entryLi = document.createElement("li");
+
+				if (removable) {
+					const removeButton = document.createElement("button");
+					removeButton.type = "button";
+					removeButton.className = "list-remove";
+					removeButton.setAttribute("aria-label", "Remove");
+					removeButton.textContent = "×";
+					removeButton.addEventListener("click", () => {
+						entryLi.dispatchEvent(
+							new CustomEvent("item-removed", { bubbles: true }),
+						);
+						entryLi.remove();
+					});
+					entryLi.append(removeButton);
+				}
+
+				const input = APP.buildInput(itemType, v);
+				input.id = `${entry.id}-${index}`;
+				input.name = `${entry.name}_${index}`;
+				input.required = Boolean(v.required);
+				entryLi.append(input);
+
+				return entryLi;
+			};
+
+			const addButton = document.createElement("button");
+			addButton.type = "button";
+			addButton.className = "list-add";
+			addButton.textContent = "+ Add";
+			addButton.addEventListener("click", () => {
+				list.append(buildEntry(list.querySelectorAll("li").length, true));
+			});
+			toolbar.append(addButton);
+
+			label.append(toolbar);
+			list.append(buildEntry(0, false));
+
+			fieldset.addEventListener("item-removed", () => {
+				list.querySelectorAll("li").forEach((entryLi, index) => {
+					const input = entryLi.querySelector("input");
+					input.id = `${entry.id}-${index}`;
+					input.name = `${entry.name}_${index}`;
+				});
+			});
+
+			fieldset.append(label, list);
+
+			return fieldset;
+		}
+
 		if (entry.type === "fieldset") {
 			const fieldset = document.createElement("fieldset");
 
@@ -962,6 +1079,14 @@ export const APP = {
 			get emailInputs() {
 				return this.inputs.filter(control => control.type === "email");
 			},
+			get fieldsets() {
+				return this.elements.filter(
+					control =>
+						control instanceof HTMLFieldSetElement &&
+						!control.classList.contains("wizard") &&
+						!control.classList.contains("list"),
+				);
+			},
 			get formControls() {
 				return [...this.inputs, ...this.dropdowns, ...this.textAreas];
 			},
@@ -973,6 +1098,13 @@ export const APP = {
 			get listboxes() {
 				return this.dropdowns.filter(control => control.multiple);
 			},
+			get lists() {
+				return this.elements.filter(
+					control =>
+						control instanceof HTMLFieldSetElement &&
+						control.classList.contains("list"),
+				);
+			},
 			get numberInputs() {
 				return this.inputs.filter(
 					control =>
@@ -983,11 +1115,41 @@ export const APP = {
 				return this.inputs.filter(control => control.type === "password");
 			},
 			get preview() {
-				const data = new FormData();
-				const current = new FormData(APP.form);
+				const rows = [];
 
-				for (const control of APP.form.elements) {
-					if (!control.name || control.disabled) {
+				for (const control of this.elements) {
+					if (control instanceof HTMLFieldSetElement) {
+						if (!this.lists.includes(control) || control.disabled) {
+							continue;
+						}
+
+						const values = Array.from(control.querySelectorAll("input"))
+							.map(input => input.value.trim())
+							.filter(Boolean);
+
+						if (!values.length) {
+							continue;
+						}
+
+						const label = control
+							.querySelector(".label-text")
+							?.textContent?.trim();
+
+						const group = control
+							.closest("fieldset:not(.wizard):not(.list)")
+							?.querySelector(":scope > legend")
+							?.textContent?.trim();
+
+						rows.push([
+							group,
+							label || control.dataset.name,
+							values.map(v => `- ${v}`).join("\n"),
+						]);
+
+						continue;
+					}
+
+					if (control.closest("fieldset.list") || !control.name || control.disabled) {
 						continue;
 					}
 
@@ -1021,7 +1183,7 @@ export const APP = {
 
 					const footnote = APP.rules.footnoteRules[control.name]
 						?.filter(r =>
-							APP._internals.match(r.test, current.getAll(control.name)),
+							APP._internals.match(r.test, APP._internals.getValue(control)),
 						)
 						.map(r => r.footnote)
 						.join(" ");
@@ -1035,10 +1197,15 @@ export const APP = {
 						?.querySelector(".label-text")
 						?.textContent?.trim();
 
-					data.append(label || control.name, value);
+					const group = control
+						.closest("fieldset:not(.wizard):not(.list)")
+						?.querySelector(":scope > legend")
+						?.textContent?.trim();
+
+					rows.push([group, label || control.name, value]);
 				}
 
-				return [...data];
+				return rows;
 			},
 			get radios() {
 				return this.inputs.filter(control => control.type === "radio");
@@ -1065,16 +1232,30 @@ export const APP = {
 			},
 			renderPreview() {
 				const rows = APP._internals.form.preview;
+				let currentGroup;
 
 				APP.previewList.replaceChildren(
-					...rows.flatMap(([label, value]) => {
+					...rows.flatMap(([group, label, value]) => {
+						const elements = [];
+
+						if (group && group !== currentGroup) {
+							const heading = document.createElement("dt");
+							heading.className = "preview-group";
+							heading.textContent = group;
+							elements.push(heading);
+						}
+
+						currentGroup = group;
+
 						const term = document.createElement("dt");
 						term.textContent = label;
 
 						const detail = document.createElement("dd");
 						detail.textContent = value;
 
-						return [term, detail];
+						elements.push(term, detail);
+
+						return elements;
 					}),
 				);
 
@@ -1161,7 +1342,7 @@ export const APP = {
 
 					const wizards = Array.from(
 						fieldset.querySelectorAll(
-							":scope > :is(.form-control, fieldset.wizard)",
+							":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
 						),
 					).slice(1);
 
