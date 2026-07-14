@@ -366,7 +366,7 @@ export const APP = {
 		APP.feedbackForm?.addEventListener("change", event => {
 			APP._internals.form.syncWizards(event, APP.feedbackForm);
 			APP._internals.form.syncModals(event);
-			APP._internals.form.syncAlerts(event);
+			APP._internals.form.syncAlerts(event, APP.feedbackForm);
 		});
 
 		APP._internals.form.syncWizards(undefined, APP.feedbackForm);
@@ -374,7 +374,7 @@ export const APP = {
 		APP.feedbackForm?.addEventListener("reset", () =>
 			requestAnimationFrame(() => {
 				APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-				APP.feedbackAlerts.replaceChildren();
+				APP._internals.form.syncAlerts(undefined, APP.feedbackForm);
 			}),
 		);
 
@@ -707,9 +707,22 @@ export const APP = {
 			toolbar.append(tooltip);
 		}
 
-		label.append(toolbar, fragment);
+		label.append(toolbar);
+
+		if (entry.alerts?.length) {
+			label.append(APP.renderControlAlerts(entry));
+		}
+
+		label.append(fragment);
 
 		return label;
+	},
+
+	renderControlAlerts: entry => {
+		const container = document.createElement("div");
+		container.className = "control-alerts";
+		container.dataset.name = entry.name;
+		return container;
 	},
 
 	renderDatalist: entry => {
@@ -1270,36 +1283,58 @@ export const APP = {
 
 				APP.copyPreview.disabled = rows.length === 0;
 			},
-			syncAlerts(e) {
+			syncAlerts(e, targetForm = APP.form) {
+				const isFeedback = targetForm === APP.feedbackForm;
+				const rules = isFeedback
+					? APP.rules.feedbackAlertRules
+					: APP.rules.alertRules;
+
+				const syncContainer = container => {
+					const name = container.dataset.name;
+					const activeRules = rules[name];
+					const control = targetForm.elements.namedItem(name);
+
+					if (!activeRules || !control) {
+						return;
+					}
+
+					const values = APP._internals.getValue(control, targetForm);
+
+					container.replaceChildren();
+
+					activeRules
+						.filter(
+							r =>
+								APP._internals.match(r.test, values) &&
+								APP._internals.dependenciesMet(
+									new Map(r.dependencies),
+									targetForm,
+								),
+						)
+						.forEach(r => {
+							container.insertAdjacentHTML(
+								"beforeend",
+								APP._internals.alertMarkup(r.alert),
+							);
+						});
+				};
+
 				const target = e?.target;
 
-				if (!target?.name) {
+				if (!target) {
+					targetForm
+						.querySelectorAll(".control-alerts")
+						.forEach(syncContainer);
 					return;
 				}
 
-				const isFeedback = target.form === APP.feedbackForm;
-				const activeRules = (
-					isFeedback ? APP.rules.feedbackAlertRules : APP.rules.alertRules
-				)[target.name];
+				const container = Array.from(
+					targetForm.querySelectorAll(".control-alerts"),
+				).find(el => el.dataset.name === target.name);
 
-				if (!activeRules) {
-					return;
+				if (container) {
+					syncContainer(container);
 				}
-
-				const values = APP._internals.getValue(target);
-
-				activeRules
-					.filter(
-						r =>
-							APP._internals.match(r.test, values) &&
-							APP._internals.dependenciesMet(
-								new Map(r.dependencies),
-								target.form,
-							),
-					)
-					.forEach(r => {
-						APP.alert(isFeedback ? "feedback" : "form", r.alert);
-					});
 			},
 			syncModals(e) {
 				const target = e?.target;
@@ -1426,6 +1461,10 @@ export const APP = {
 				match ? new RegExp(match[1], match[2]).test(v) : v === test,
 			);
 		},
+		alertMarkup: ({ variant, message }) =>
+			marked.parse(
+				`> [!${variant.toUpperCase()}]\n> ${message.replaceAll("\n", "\n> ")}`,
+			),
 		prepareModal: (dialog, headerElement, messageElement, content) => {
 			const { header, message, variant } = content;
 			headerElement.innerHTML = marked.parseInline(header);
@@ -1509,7 +1548,7 @@ export const APP = {
 		document.documentElement.dataset.theme = theme;
 		localStorage.setItem(this.THEME_STORAGE_KEY, theme);
 	},
-	alert: (key, { variant, message }) => {
+	alert: (key, content) => {
 		const root =
 			key === "app"
 				? APP.appAlerts
@@ -1522,12 +1561,7 @@ export const APP = {
 			alerts[alerts.length - 1].remove();
 		}
 
-		root.insertAdjacentHTML(
-			"afterbegin",
-			marked.parse(
-				`> [!${variant.toUpperCase()}]\n> ${message.replaceAll("\n", "\n> ")}`,
-			),
-		);
+		root.insertAdjacentHTML("afterbegin", APP._internals.alertMarkup(content));
 	},
 	confirm: (
 		message,
