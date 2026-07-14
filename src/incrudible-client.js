@@ -441,7 +441,8 @@ export const APP = {
 	// so they can't go through renderFormControl/applyShared directly).
 	buildInput: (type, constraints = {}, value) => {
 		const input = document.createElement("input");
-		input.type = type === "currency" ? "text" : type;
+		input.type =
+			type === "currency" ? "text" : type === "datetime" ? "datetime-local" : type;
 
 		if (type === "currency" || type === "number") {
 			input.dataset.type = type;
@@ -508,7 +509,9 @@ export const APP = {
 			case "url":
 			case "currency":
 			case "number":
-			case "date": {
+			case "date":
+			case "datetime":
+			case "time": {
 				const input = APP.buildInput(entry.type, v, val);
 
 				applyShared(input);
@@ -1068,6 +1071,9 @@ export const APP = {
 			get dateInputs() {
 				return this.inputs.filter(control => control.type === "date");
 			},
+			get datetimeInputs() {
+				return this.inputs.filter(control => control.type === "datetime-local");
+			},
 			get dropdowns() {
 				return this.elements.filter(
 					control => control instanceof HTMLSelectElement,
@@ -1226,6 +1232,9 @@ export const APP = {
 			},
 			get textInputs() {
 				return this.inputs.filter(control => control.type === "text");
+			},
+			get timeInputs() {
+				return this.inputs.filter(control => control.type === "time");
 			},
 			get urlInputs() {
 				return this.inputs.filter(control => control.type === "url");
