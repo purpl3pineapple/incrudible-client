@@ -720,6 +720,7 @@ export const APP = {
 		const container = document.createElement("div");
 		container.className = "control-alerts";
 		container.dataset.name = entry.name;
+		container.dataset.controlId = entry.id;
 		return container;
 	},
 
@@ -1290,7 +1291,9 @@ export const APP = {
 				const syncContainer = container => {
 					const name = container.dataset.name;
 					const activeRules = rules[name];
-					const control = targetForm.elements.namedItem(name);
+					const control = document.getElementById(
+						container.dataset.controlId,
+					);
 
 					if (!activeRules || !control) {
 						return;
