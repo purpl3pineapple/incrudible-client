@@ -1441,9 +1441,11 @@ export const APP = {
 			},
 		},
 		getValue: (control, targetForm = APP.form) => {
-			return control.type === "checkbox" ||
-				control.type === "radio" ||
-				control.multiple
+			if (control.type === "checkbox" || control.type === "radio") {
+				return control.checked ? [control.value] : [];
+			}
+
+			return control.multiple
 				? new FormData(targetForm).getAll(control.name)
 				: [control.value];
 		},
