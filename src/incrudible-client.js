@@ -366,7 +366,7 @@ export const APP = {
 		APP.feedbackForm?.addEventListener("change", event => {
 			APP._internals.form.syncWizards(event, APP.feedbackForm);
 			APP._internals.form.syncModals(event);
-			APP._internals.form.syncAlerts(event, APP.feedbackForm);
+			APP._internals.form.syncAlerts(APP.feedbackForm);
 		});
 
 		APP._internals.form.syncWizards(undefined, APP.feedbackForm);
@@ -374,7 +374,7 @@ export const APP = {
 		APP.feedbackForm?.addEventListener("reset", () =>
 			requestAnimationFrame(() => {
 				APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-				APP._internals.form.syncAlerts(undefined, APP.feedbackForm);
+				APP._internals.form.syncAlerts(APP.feedbackForm);
 			}),
 		);
 
@@ -1282,13 +1282,13 @@ export const APP = {
 
 				APP.copyPreview.disabled = rows.length === 0;
 			},
-			syncAlerts(e, targetForm = APP.form) {
+			syncAlerts(targetForm = APP.form) {
 				const isFeedback = targetForm === APP.feedbackForm;
 				const rules = isFeedback
 					? APP.rules.feedbackAlertRules
 					: APP.rules.alertRules;
 
-				const syncContainer = container => {
+				targetForm.querySelectorAll(".control-alerts").forEach(container => {
 					const name = container.dataset.name;
 					const activeRules = rules[name];
 					const control = document.getElementById(
@@ -1318,24 +1318,7 @@ export const APP = {
 								APP._internals.alertMarkup(r.alert),
 							);
 						});
-				};
-
-				const target = e?.target;
-
-				if (!target) {
-					targetForm
-						.querySelectorAll(".control-alerts")
-						.forEach(syncContainer);
-					return;
-				}
-
-				const container = Array.from(
-					targetForm.querySelectorAll(".control-alerts"),
-				).find(el => el.dataset.name === target.name);
-
-				if (container) {
-					syncContainer(container);
-				}
+				});
 			},
 			syncModals(e) {
 				const target = e?.target;
