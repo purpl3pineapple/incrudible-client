@@ -707,13 +707,11 @@ export const APP = {
 			toolbar.append(tooltip);
 		}
 
-		label.append(toolbar);
-
 		if (entry.alerts?.length) {
 			label.append(APP.renderControlAlerts(entry));
 		}
 
-		label.append(fragment);
+		label.append(toolbar, fragment);
 
 		return label;
 	},
