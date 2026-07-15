@@ -444,7 +444,7 @@ export const APP = {
 		input.type =
 			type === "currency" ? "text" : type === "datetime" ? "datetime-local" : type;
 
-		if (type === "currency" || type === "number") {
+		if (["currency", "number"].includes(type)) {
 			input.dataset.type = type;
 		}
 
@@ -617,10 +617,6 @@ export const APP = {
 				}
 
 				entry.options?.forEach(option => {
-					const selected = Array.isArray(val)
-						? val.indexOf(option.value) !== -1
-						: option.value === val;
-
 					const element = document.createElement("option");
 					element.value = option.value;
 
@@ -628,7 +624,11 @@ export const APP = {
 						element.className = "select-placeholder";
 					}
 
-					if (selected) {
+					if (
+						Array.isArray(val)
+							? val.indexOf(option.value) !== -1
+							: option.value === val
+					) {
 						element.defaultSelected = true;
 					}
 
@@ -897,6 +897,7 @@ export const APP = {
 
 		const fieldset = document.createElement("fieldset");
 		fieldset.className = `wizard w-${entry.width || "auto"}`;
+		fieldset.dataset.type = entry.type;
 
 		if (rule) {
 			fieldset.hidden = true;
@@ -907,6 +908,24 @@ export const APP = {
 			// wrapped as {wizard, test} with an explicit boolean test
 			APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
 		);
+
+		// A checkbox/radio controller never gets its own box regardless of
+		// nesting (see the :has(input[type=checkbox],[type=radio]) rule),
+		// so unlike other control types there's no double-boxing to avoid
+		// by nesting it inside the fieldset - and rendering it as a
+		// preceding sibling instead means the fieldset's own boxed "shell"
+		// can be hidden entirely while nothing is currently eligible to
+		// reveal (see the dataset.type check in syncWizards below), without
+		// also hiding the controller itself.
+		if (["checkbox", "radio"].includes(entry.type)) {
+			fieldset.append(...children);
+
+			const controller = APP.renderFormControl(entry, rule);
+			const group = document.createDocumentFragment();
+			group.append(controller, fieldset);
+
+			return group;
+		}
 
 		fieldset.append(
 			APP.renderFormControl(Object.assign({}, entry, { width: 1 })),
@@ -1175,7 +1194,7 @@ export const APP = {
 
 					let value;
 
-					if (control.type === "checkbox" || control.type === "radio") {
+					if (["checkbox", "radio"].includes(control.type)) {
 						if (!control.checked) {
 							continue;
 						}
@@ -1364,7 +1383,15 @@ export const APP = {
 			},
 			syncWizards(e, targetForm = APP.form) {
 				const syncFieldset = fieldset => {
-					const controller = fieldset.querySelector(":scope > .form-control");
+					// A checkbox/radio controller renders as the fieldset's
+					// preceding sibling; every other control type still renders
+					// as its first child (see renderEntry).
+					const external = ["checkbox", "radio"].includes(
+						fieldset.dataset.type,
+					);
+					const controller = external
+						? fieldset.previousElementSibling
+						: fieldset.querySelector(":scope > .form-control");
 					const control = document.getElementById(controller?.htmlFor ?? "");
 
 					if (!control?.name) {
@@ -1381,9 +1408,11 @@ export const APP = {
 						fieldset.querySelectorAll(
 							":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
 						),
-					).slice(1);
+					);
 
-					wizards.forEach((wizard, i) => {
+					const targets = external ? wizards : wizards.slice(1);
+
+					targets.forEach((wizard, i) => {
 						const rule = activeRules[i] || {};
 						const show =
 							APP._internals.match(rule.test, values) &&
@@ -1406,6 +1435,21 @@ export const APP = {
 								.forEach(control => (control.disabled = !show));
 						}
 					});
+
+					if (!external) {
+						return;
+					}
+
+					// Nothing eligible to reveal right now: collapse (and disable,
+					// so nothing inside can still submit a stale value) the whole
+					// shell instead of leaving an empty boxed fieldset visible
+					// next to the controller. Only applies to the external
+					// (checkbox/radio) case - the controller is this fieldset's
+					// own first child otherwise, and hiding the fieldset would
+					// hide the controller too.
+					const anyShown = targets.some(wizard => !wizard.hidden);
+					fieldset.hidden = !anyShown;
+					fieldset.disabled = !anyShown;
 				};
 
 				const wizards = Array.from(
@@ -1425,7 +1469,12 @@ export const APP = {
 
 				wizards
 					.filter(fieldset => {
-						const controller = fieldset.querySelector(":scope > .form-control");
+						const external = ["checkbox", "radio"].includes(
+							fieldset.dataset.type,
+						);
+						const controller = external
+							? fieldset.previousElementSibling
+							: fieldset.querySelector(":scope > .form-control");
 
 						return controller?.htmlFor === target.id;
 					})
@@ -1433,7 +1482,7 @@ export const APP = {
 			},
 		},
 		getValue: (control, targetForm = APP.form) => {
-			if (control.type === "checkbox" || control.type === "radio") {
+			if (["checkbox", "radio"].includes(control.type)) {
 				return control.checked ? [control.value] : [];
 			}
 
