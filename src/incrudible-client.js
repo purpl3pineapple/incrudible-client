@@ -379,6 +379,10 @@ export const APP = {
 		);
 
 		APP.copyPreview?.addEventListener("click", async () => {
+			if (!APP.form.reportValidity()) {
+				return;
+			}
+
 			const rowText = APP._internals.form.preview
 				.map(([, label, value]) => `${label}: ${value}`)
 				.join(" | ");
