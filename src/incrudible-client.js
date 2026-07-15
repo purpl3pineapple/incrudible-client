@@ -663,6 +663,8 @@ export const APP = {
 
 				if (entry.value != null) {
 					input.defaultValue = entry.value;
+				} else if (entry.type === "checkbox") {
+					input.defaultValue = "true";
 				}
 
 				if (entry.checked || entry.defaultChecked) {
@@ -1178,7 +1180,7 @@ export const APP = {
 							continue;
 						}
 
-						value = control.value === "on" ? "Yes" : control.value;
+						value = control.value === "true" ? "Yes" : control.value;
 					} else if (control.tagName === "SELECT") {
 						if (control.multiple) {
 							value = Array.from(control.selectedOptions)
