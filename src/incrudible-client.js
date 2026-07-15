@@ -1180,7 +1180,7 @@ export const APP = {
 							continue;
 						}
 
-						value = control.value === "true" ? "Yes" : control.value;
+						value = control.value;
 					} else if (control.tagName === "SELECT") {
 						if (control.multiple) {
 							value = Array.from(control.selectedOptions)
@@ -1222,7 +1222,11 @@ export const APP = {
 						?.querySelector(":scope > legend")
 						?.textContent?.trim();
 
-					rows.push([group, label || control.name, value]);
+					if (control.type === "checkbox" && value === "true") {
+						rows.push([group, "", label || control.name]);
+					} else {
+						rows.push([group, label || control.name, value]);
+					}
 				}
 
 				return rows;
@@ -1270,13 +1274,16 @@ export const APP = {
 
 						currentGroup = group;
 
-						const term = document.createElement("dt");
-						term.textContent = label;
+						if (label) {
+							const term = document.createElement("dt");
+							term.textContent = label;
+							elements.push(term);
+						}
 
 						const detail = document.createElement("dd");
 						detail.textContent = value;
 
-						elements.push(term, detail);
+						elements.push(detail);
 
 						return elements;
 					}),
