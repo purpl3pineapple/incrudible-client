@@ -823,6 +823,12 @@ export const APP = {
 			const buildEntry = (index, removable) => {
 				const entryLi = document.createElement("li");
 
+				const input = APP.buildInput(itemType, v);
+				input.id = `${entry.id}-${index}`;
+				input.name = `${entry.name}_${index}`;
+				input.required = Boolean(v.required);
+				entryLi.append(input);
+
 				if (removable) {
 					const removeButton = document.createElement("button");
 					removeButton.type = "button";
@@ -837,12 +843,6 @@ export const APP = {
 					});
 					entryLi.append(removeButton);
 				}
-
-				const input = APP.buildInput(itemType, v);
-				input.id = `${entry.id}-${index}`;
-				input.name = `${entry.name}_${index}`;
-				input.required = Boolean(v.required);
-				entryLi.append(input);
 
 				return entryLi;
 			};
