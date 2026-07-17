@@ -149,9 +149,13 @@ export const APP = {
 		alertRules: {},
 		footnoteRules: {},
 		wizardRules: {},
+		mountRules: {},
+		siblingsRules: {},
 		feedbackWizardRules: {},
 		feedbackAlertRules: {},
 		feedbackModalRules: {},
+		feedbackMountRules: {},
+		feedbackSiblingsRules: {},
 	},
 
 	workflowLabel: "",
@@ -182,6 +186,8 @@ export const APP = {
 			APP.rules.feedbackWizardRules = feedback?.rules?.wizards || {};
 			APP.rules.feedbackAlertRules = feedback?.rules?.alerts || {};
 			APP.rules.feedbackModalRules = feedback?.rules?.modals || {};
+			APP.rules.feedbackMountRules = feedback?.rules?.mount || {};
+			APP.rules.feedbackSiblingsRules = feedback?.rules?.siblings || {};
 
 			APP.feedbackFormControls.replaceChildren(
 				APP.renderEntries(feedback.schema),
@@ -743,7 +749,7 @@ export const APP = {
 		return datalist;
 	},
 
-	renderEntry: (entry, rule) => {
+	renderEntry: (entry, rule, mounted = []) => {
 		if (entry.type === "list" || entry.type.startsWith("list:")) {
 			const itemType = entry.type === "list" ? "text" : entry.type.slice(5);
 			const v = entry.constraints || {};
@@ -890,13 +896,54 @@ export const APP = {
 			const legend = document.createElement("legend");
 			legend.innerHTML = entry.label;
 
-			fieldset.append(legend, APP.renderEntries(entry.members));
+			fieldset.append(
+				legend,
+				...entry.members.map(member => APP.renderEntry(member, undefined, mounted)),
+			);
 
 			return fieldset;
 		}
 
+		// Mount/siblings items may be bare (shown while checked, for
+		// checkbox/radio) or wrapped as {wizard, test} - same convention as
+		// wizards. Unlike wizards they don't stay adjacent to their
+		// controller in the DOM (mount ends up at the end of the form,
+		// siblings right after this control but still a plain sibling, not
+		// nested in any fieldset), so each rendered node is tagged with the
+		// controller's id + its rule's index instead, for syncWizards to
+		// find later.
+		const tag = (attr, i, node) => {
+			const nodes =
+				node instanceof DocumentFragment ? Array.from(node.children) : [node];
+
+			nodes.forEach(n => {
+				n.dataset[attr] = entry.id;
+				n.dataset.ruleIndex = i;
+			});
+
+			return node;
+		};
+
+		(entry.mount || []).forEach((r, i) => {
+			const node = APP.renderEntry(r.wizard || r, r.wizard ? r : {}, mounted);
+			mounted.push(tag("mountedBy", i, node));
+		});
+
+		const siblings = (entry.siblings || []).map((r, i) => {
+			const node = APP.renderEntry(r.wizard || r, r.wizard ? r : {}, mounted);
+			return tag("siblingOf", i, node);
+		});
+
 		if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
-			return APP.renderFormControl(entry, rule);
+			const control = APP.renderFormControl(entry, rule);
+
+			if (!siblings.length) {
+				return control;
+			}
+
+			const group = document.createDocumentFragment();
+			group.append(control, ...siblings);
+			return group;
 		}
 
 		const fieldset = document.createElement("fieldset");
@@ -909,7 +956,7 @@ export const APP = {
 		const children = entry.wizards.map(r =>
 			// checkbox/radio wizard items may be bare (shown while checked) or
 			// wrapped as {wizard, test} with an explicit boolean test
-			APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
+			APP.renderEntry(r.wizard || r, r.wizard ? r : {}, mounted),
 		);
 
 		// A checkbox/radio controller never gets its own box regardless of
@@ -934,23 +981,33 @@ export const APP = {
 				rule,
 			);
 			const group = document.createDocumentFragment();
-			group.append(controller, fieldset);
+			group.append(controller, fieldset, ...siblings);
 
 			return group;
 		}
 
-		fieldset.className = `wizard w-${entry.width || "auto"}`;
+		fieldset.className = `wizard w-${entry.width || 1}`;
 		fieldset.append(
 			APP.renderFormControl(Object.assign({}, entry, { width: 1 })),
 			...children,
 		);
 
-		return fieldset;
+		if (!siblings.length) {
+			return fieldset;
+		}
+
+		const group = document.createDocumentFragment();
+		group.append(fieldset, ...siblings);
+		return group;
 	},
 
 	renderEntries: entries => {
+		const mounted = [];
 		const fragment = document.createDocumentFragment();
-		fragment.append(...entries.map(entry => APP.renderEntry(entry)));
+		fragment.append(
+			...entries.map(entry => APP.renderEntry(entry, undefined, mounted)),
+		);
+		fragment.append(...mounted);
 		return fragment;
 	},
 
@@ -1464,6 +1521,61 @@ export const APP = {
 					fieldset.hidden = !anyShown;
 					fieldset.disabled = !anyShown;
 				};
+
+				// Mount/siblings targets don't stay adjacent to their
+				// controller in the DOM the way a nested wizard fieldset's
+				// children do, so they're found by the data-mounted-by/
+				// data-sibling-of + rule index tags renderEntry sets on
+				// them instead of DOM position. Rule counts here are small
+				// (a handful of gating controls per form), so re-evaluating
+				// all of them on every call is cheap - simpler than
+				// replicating the fieldset-adjacency filtering below in
+				// attribute-lookup form.
+				const syncPlaced = (selector, dataKey, rules, feedbackRules) => {
+					targetForm?.querySelectorAll(selector).forEach(node => {
+						const control = document.getElementById(node.dataset[dataKey]);
+
+						if (!control?.name) {
+							return;
+						}
+
+						const values = APP._internals.getValue(control, targetForm);
+						const activeRules =
+							(targetForm === APP.feedbackForm ? feedbackRules : rules)[
+								control.name
+							] || [];
+						const rule = activeRules[node.dataset.ruleIndex] || {};
+						const show =
+							APP._internals.match(rule.test, values) &&
+							APP._internals.dependenciesMet(
+								new Map(rule.dependencies),
+								targetForm,
+							);
+
+						node.hidden = !show;
+
+						if (node instanceof HTMLFieldSetElement) {
+							node.disabled = !show;
+						} else {
+							node
+								.querySelectorAll("input, select, textarea")
+								.forEach(control => (control.disabled = !show));
+						}
+					});
+				};
+
+				syncPlaced(
+					"[data-mounted-by]",
+					"mountedBy",
+					APP.rules.mountRules,
+					APP.rules.feedbackMountRules,
+				);
+				syncPlaced(
+					"[data-sibling-of]",
+					"siblingOf",
+					APP.rules.siblingsRules,
+					APP.rules.feedbackSiblingsRules,
+				);
 
 				const wizards = Array.from(
 					targetForm?.querySelectorAll("fieldset.wizard") ?? [],
