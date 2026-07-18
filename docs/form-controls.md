@@ -201,6 +201,42 @@ capturing a custom value when checked:
 </details>
 
 <details>
+<summary><strong>ImageInput</strong></summary>
+
+```json
+{
+	"type": "image",
+	"id": "screenshot",
+	"name": "screenshot",
+	"label": "Screenshot",
+	"hint": "Choose an image to attach",
+	"multiple": true,
+	"constraints": {
+		"required": false
+	}
+}
+```
+
+`image` renders `<input type="file" accept="image/*">`. Set `multiple` to
+`true` to let one picker select several images. Use `list:image` for an
+addable set of one-image pickers:
+
+```json
+{
+	"type": "list:image",
+	"id": "screenshots",
+	"name": "screenshots",
+	"label": "Screenshots"
+}
+```
+
+The selected browser `File` is intentionally not submitted as ordinary form
+data. Convert it with `APP.imageToUpload(file)` and upload it before
+submitting the returned Drive metadata with the rest of the form.
+
+</details>
+
+<details>
 <summary><strong>CurrencyInput</strong></summary>
 
 ```json

@@ -172,6 +172,29 @@ export const APP = {
 		APP._internals.workflow = value;
 	},
 
+	imageToUpload: file => {
+		const maxImageBytes = 10 * 1024 * 1024;
+
+		if (!file?.type?.startsWith("image/")) {
+			return Promise.reject(new Error("Select an image file."));
+		}
+
+		if (file.size > maxImageBytes) {
+			return Promise.reject(new Error("Select an image no larger than 10 MiB."));
+		}
+
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+
+			reader.addEventListener("load", () => {
+				const [, base64] = `${reader.result}`.split(",", 2);
+				resolve({ name: file.name, mimeType: file.type, base64 });
+			});
+			reader.addEventListener("error", () => reject(reader.error));
+			reader.readAsDataURL(file);
+		});
+	},
+
 	init: ({
 		feedback,
 		workflowLabel = "",
@@ -449,16 +472,27 @@ export const APP = {
 	// Bare <input> builder shared by renderFormControl's labeled-control path
 	// and by list-control entries (which need their own id/name per entry,
 	// so they can't go through renderFormControl/applyShared directly).
-	buildInput: (type, constraints = {}, value) => {
+	buildInput: (type, constraints = {}, value, multiple = false) => {
 		const input = document.createElement("input");
 		input.type =
-			type === "currency" ? "text" : type === "datetime" ? "datetime-local" : type;
+			type === "currency"
+				? "text"
+				: type === "datetime"
+					? "datetime-local"
+					: type === "image"
+						? "file"
+						: type;
 
 		if (["currency", "number"].includes(type)) {
 			input.dataset.type = type;
 		}
 
-		if (value != null) {
+		if (type === "image") {
+			input.accept = "image/*";
+			input.multiple = multiple;
+		}
+
+		if (value != null && type !== "image") {
 			input.defaultValue = value;
 		}
 
@@ -517,12 +551,13 @@ export const APP = {
 			case "tel":
 			case "password":
 			case "url":
+			case "image":
 			case "currency":
 			case "number":
 			case "date":
 			case "datetime":
 			case "time": {
-				const input = APP.buildInput(entry.type, v, val);
+				const input = APP.buildInput(entry.type, v, val, entry.multiple);
 
 				applyShared(input);
 
