@@ -412,22 +412,14 @@ export const APP = {
 				return;
 			}
 
-			const rowText = APP._internals.form.preview
-				.map(([, label, value]) => `${label}: ${value}`)
-				.join(" | ");
+			const { charCount, copyText } = APP.formHelpers;
 
-			if (!rowText) {
+			if (!charCount) {
 				return;
 			}
 
-			const text = [
-				APP.departmentBrand.textContent,
-				APP.workflowLabel,
-				rowText,
-			].join(" | ");
-
 			try {
-				await navigator.clipboard.writeText(text);
+				await navigator.clipboard.writeText(copyText);
 				APP.toast("Copied to clipboard.", "tip");
 			} catch (_e) {
 				APP.toast("Couldn't copy to clipboard.", "caution");
@@ -1200,6 +1192,18 @@ export const APP = {
 		form: {
 			get checkboxes() {
 				return this.inputs.filter(control => control.type === "checkbox");
+			},
+			get charCount() {
+				return this.copyText.length;
+			},
+			get copyText() {
+				const rowText = this.preview
+					.map(([, label, value]) => `${label}: ${value}`)
+					.join(" | ");
+
+				return rowText
+					? [APP.departmentBrand.textContent, APP.workflowLabel, rowText].join(" | ")
+					: "";
 			},
 			get currencyInputs() {
 				return this.inputs.filter(
