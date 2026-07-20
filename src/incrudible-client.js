@@ -225,6 +225,12 @@ export const APP = {
 			APP.themeToggle.checked = APP.theme === "dark";
 		}
 
+		document.addEventListener("click", event => {
+			if (event.target.closest?.('a[href^="javascript:"]')) {
+				event.preventDefault();
+			}
+		});
+
 		APP.tabs.forEach((tab, index) => {
 			tab.addEventListener("click", () =>
 				APP.navigator.selectTab(tab.dataset.tabId),
@@ -267,25 +273,30 @@ export const APP = {
 				?.addEventListener("click", () => APP.toggleDropdown(dropdown));
 		});
 
-		APP.topnavToggle?.addEventListener("click", () =>
-			APP.topnav?.classList.toggle("expanded"),
-		);
+		APP.topnavToggle?.addEventListener("click", event => {
+			event.preventDefault();
+			APP.topnav?.classList.toggle("expanded");
+		});
 
 		APP.sideNavControllers.forEach(element =>
-			element?.addEventListener("click", () =>
-				APP.sidenav?.classList.add("open"),
-			),
+			element?.addEventListener("click", event => {
+				event.preventDefault();
+				APP.sidenav?.classList.add("open");
+			}),
 		);
 
-		APP.sidenavClose?.addEventListener("click", () =>
-			APP.sidenav?.classList.remove("open"),
-		);
+		APP.sidenavClose?.addEventListener("click", event => {
+			event.preventDefault();
+			APP.sidenav?.classList.remove("open");
+		});
 
-		APP.openFeedbackDrawer?.addEventListener("click", () =>
-			APP.feedbackDrawer?.classList.add("open"),
-		);
+		APP.openFeedbackDrawer?.addEventListener("click", event => {
+			event.preventDefault();
+			APP.feedbackDrawer?.classList.add("open");
+		});
 
-		APP.closeFeedbackDrawer?.addEventListener("click", () => {
+		APP.closeFeedbackDrawer?.addEventListener("click", event => {
+			event.preventDefault();
 			APP.feedbackDrawer?.classList.remove("open");
 			APP.feedbackForm?.reset();
 		});
