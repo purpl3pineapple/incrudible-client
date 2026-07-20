@@ -158,6 +158,8 @@ export const APP = {
 		feedbackSiblingsRules: {},
 	},
 
+	departmentName: null,
+	alertName: null,
 	workflowLabel: "",
 
 	// The active workflow — a rich alert object for queue, a plain label
@@ -1200,9 +1202,11 @@ export const APP = {
 				const rowText = this.preview
 					.map(([, label, value]) => `${label}: ${value}`)
 					.join(" | ");
+				const department = APP.departmentName ?? APP.departmentBrand.textContent;
+				const alert = APP.alertName ?? APP.workflowLabel;
 
 				return rowText
-					? [APP.departmentBrand.textContent, APP.workflowLabel, rowText].join(" | ")
+					? [department, alert, rowText].filter(Boolean).join(" | ")
 					: "";
 			},
 			get currencyInputs() {
