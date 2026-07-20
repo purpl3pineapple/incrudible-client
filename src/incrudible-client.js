@@ -1201,13 +1201,12 @@ export const APP = {
 					.map(([, label, value]) => `${label}: ${value}`)
 					.join(" | ");
 				const department = APP.activeFlowLink?.textContent?.trim() || "";
-				const alert =
-					APP.workflow && typeof APP.workflow === "object"
-						? APP.workflowLabel
-						: "";
+				const prefix = APP.workflow && typeof APP.workflow === "object"
+					? [department, APP.workflowLabel]
+					: [`${department} (${APP.workflowLabel})`];
 
 				return rowText
-					? [department, alert, rowText].filter(Boolean).join(" | ")
+					? [...prefix, rowText].filter(Boolean).join(" | ")
 					: "";
 			},
 			get currencyInputs() {
