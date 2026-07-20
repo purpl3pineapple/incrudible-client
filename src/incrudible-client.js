@@ -117,8 +117,8 @@ export const APP = {
 	get copyPreview() {
 		return document.getElementById("copy-preview");
 	},
-	get departmentBrand() {
-		return document.querySelector(".brand");
+	get activeFlowLink() {
+		return this.sidenav?.querySelector("a[data-flow-id].active");
 	},
 	get toastContainer() {
 		return document.getElementById("toast-container");
@@ -158,8 +158,6 @@ export const APP = {
 		feedbackSiblingsRules: {},
 	},
 
-	departmentName: null,
-	alertName: null,
 	workflowLabel: "",
 
 	// The active workflow — a rich alert object for queue, a plain label
@@ -1202,8 +1200,11 @@ export const APP = {
 				const rowText = this.preview
 					.map(([, label, value]) => `${label}: ${value}`)
 					.join(" | ");
-				const department = APP.departmentName ?? APP.departmentBrand.textContent;
-				const alert = APP.alertName ?? APP.workflowLabel;
+				const department = APP.activeFlowLink?.textContent?.trim() || "";
+				const alert =
+					APP.workflow && typeof APP.workflow === "object"
+						? APP.workflowLabel
+						: "";
 
 				return rowText
 					? [department, alert, rowText].filter(Boolean).join(" | ")
