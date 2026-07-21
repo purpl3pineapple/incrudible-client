@@ -530,7 +530,10 @@ export const APP = {
 		// defaultSelected), not the live ones outerHTML would drop.
 		const applyShared = element => {
 			element.id = entry.id;
-			element.name = entry.name;
+
+			if (entry.name) {
+				element.name = entry.name;
+			}
 
 			if (entry.disabled) {
 				element.disabled = true;
@@ -628,7 +631,10 @@ export const APP = {
 			case "listbox": {
 				const select = document.createElement("select");
 				select.id = entry.id;
-				select.name = entry.name;
+
+				if (entry.name) {
+					select.name = entry.name;
+				}
 
 				if (entry.type === "listbox") {
 					select.multiple = true;
@@ -769,7 +775,11 @@ export const APP = {
 	renderControlAlerts: entry => {
 		const container = document.createElement("div");
 		container.className = "control-alerts";
-		container.dataset.name = entry.name;
+
+		if (entry.name) {
+			container.dataset.name = entry.name;
+		}
+
 		container.dataset.controlId = entry.id;
 		return container;
 	},
@@ -795,7 +805,10 @@ export const APP = {
 			const fieldset = document.createElement("fieldset");
 			fieldset.className = `list w-${entry.width || 1}`;
 			fieldset.id = entry.id;
-			fieldset.dataset.name = entry.name;
+
+			if (entry.name) {
+				fieldset.dataset.name = entry.name;
+			}
 
 			if (itemType !== "text") {
 				fieldset.dataset.type = itemType;
@@ -873,7 +886,11 @@ export const APP = {
 
 				const input = APP.buildInput(itemType, v);
 				input.id = `${entry.id}-${index}`;
-				input.name = `${entry.name}_${index}`;
+
+				if (entry.name) {
+					input.name = `${entry.name}_${index}`;
+				}
+
 				input.required = Boolean(v.required);
 				entryLi.append(input);
 
@@ -911,7 +928,10 @@ export const APP = {
 				list.querySelectorAll("li").forEach((entryLi, index) => {
 					const input = entryLi.querySelector("input");
 					input.id = `${entry.id}-${index}`;
-					input.name = `${entry.name}_${index}`;
+
+					if (entry.name) {
+						input.name = `${entry.name}_${index}`;
+					}
 				});
 			});
 
@@ -1282,7 +1302,11 @@ export const APP = {
 
 				for (const control of this.elements) {
 					if (control instanceof HTMLFieldSetElement) {
-						if (!this.lists.includes(control) || control.disabled) {
+						if (
+							!this.lists.includes(control) ||
+							!control.dataset.name ||
+							control.disabled
+						) {
 							continue;
 						}
 

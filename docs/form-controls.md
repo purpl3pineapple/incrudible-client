@@ -5,6 +5,41 @@ with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`, `mount`,
 `siblings`) and `dependencies` demonstrated so you can see the full range
 of what each control supports, not just a single happy-path config.
 
+## Utility Controls
+
+Omit a control's `name` to display it without including it in the submission or
+preview. Its `id` remains available to `!{#id}` value references, so a utility
+date control can supply a formatted dropdown, checkbox, radio, or footnote
+value without creating a separate record field.
+
+```json
+[
+	{
+		"type": "date",
+		"id": "review-date",
+		"label": "Review Date",
+		"constraints": { "required": true }
+	},
+	{
+		"type": "select",
+		"id": "call-outcome",
+		"name": "callOutcome",
+		"label": "Call Outcome",
+		"options": [
+			{
+				"label": "Customer unavailable",
+				"value": "Customer was not available for call on !{#review-date}"
+			}
+		]
+	}
+]
+```
+
+Nameless controls still support native constraints and can be referenced by
+`id`, but they cannot own change-triggered rules because those are keyed by
+`name`. Lists may also omit `name`; their entries are then utility inputs and
+are omitted from the preview and submission.
+
 <details>
 <summary><strong>Checkbox</strong></summary>
 
