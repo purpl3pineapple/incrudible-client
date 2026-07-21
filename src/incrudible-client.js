@@ -1323,13 +1323,16 @@ export const APP = {
 							continue;
 						}
 
-						value = control.value;
+						value =
+							["checkbox", "radio"].includes(control.type)
+								? this.resolveValueReferences(control.value, control)
+								: control.value;
 					} else if (control.tagName === "SELECT") {
 						if (control.multiple) {
 							value = Array.from(control.selectedOptions)
 								.map(option =>
 									/!\{#[^}]+\}/.test(option.value)
-										? this.resolveDropdownValue(option.value, control)
+										? this.resolveValueReferences(option.value, control)
 										: option.textContent.trim(),
 								)
 								.filter(Boolean)
@@ -1338,7 +1341,7 @@ export const APP = {
 							const option = control.selectedOptions[0];
 							value = option?.value
 								? /!\{#[^}]+\}/.test(option.value)
-									? this.resolveDropdownValue(option.value, control)
+									? this.resolveValueReferences(option.value, control)
 									: option.textContent.trim()
 								: "";
 						}
@@ -1356,7 +1359,7 @@ export const APP = {
 						?.filter(r =>
 							APP._internals.match(r.test, APP._internals.getValue(control)),
 						)
-						.map(r => this.resolveDropdownValue(r.footnote, control))
+						.map(r => this.resolveValueReferences(r.footnote, control))
 						.join(" ");
 
 					if (footnote) {
@@ -1408,8 +1411,8 @@ export const APP = {
 			get urlInputs() {
 				return this.inputs.filter(control => control.type === "url");
 			},
-			resolveDropdownValue(value, control) {
-				if (!(control instanceof HTMLSelectElement) || typeof value !== "string") {
+			resolveValueReferences(value, control) {
+				if (typeof value !== "string") {
 					return value;
 				}
 
