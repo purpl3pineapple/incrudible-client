@@ -1327,12 +1327,20 @@ export const APP = {
 					} else if (control.tagName === "SELECT") {
 						if (control.multiple) {
 							value = Array.from(control.selectedOptions)
-								.map(option => option.textContent.trim())
+								.map(option =>
+									/!\{#[^}]+\}/.test(option.value)
+										? this.resolveDropdownValue(option.value, control)
+										: option.textContent.trim(),
+								)
 								.filter(Boolean)
 								.join(", ");
 						} else {
 							const option = control.selectedOptions[0];
-							value = option && option.value ? option.textContent.trim() : "";
+							value = option?.value
+								? /!\{#[^}]+\}/.test(option.value)
+									? this.resolveDropdownValue(option.value, control)
+									: option.textContent.trim()
+								: "";
 						}
 					} else {
 						value = control.value;
@@ -1348,7 +1356,7 @@ export const APP = {
 						?.filter(r =>
 							APP._internals.match(r.test, APP._internals.getValue(control)),
 						)
-						.map(r => r.footnote)
+						.map(r => this.resolveDropdownValue(r.footnote, control))
 						.join(" ");
 
 					if (footnote) {
@@ -1399,6 +1407,19 @@ export const APP = {
 			},
 			get urlInputs() {
 				return this.inputs.filter(control => control.type === "url");
+			},
+			resolveDropdownValue(value, control) {
+				if (!(control instanceof HTMLSelectElement) || typeof value !== "string") {
+					return value;
+				}
+
+				return value.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
+					const source = Array.from(
+						control.form?.querySelectorAll("input, select, textarea") ?? [],
+					).find(candidate => candidate.id === id);
+
+					return source?.value ? source.value : token;
+				});
 			},
 			renderPreview() {
 				const rows = APP._internals.form.preview;

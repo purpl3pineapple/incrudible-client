@@ -898,6 +898,50 @@ fractional values freely instead of snapping to whole numbers.
 }
 ```
 
+### Value references
+
+Workflow `select` and `listbox` option values and their `footnotes` may
+include `!{#control-id}` to insert another control's current value when the
+preview is rendered or the form is submitted. The reference stays in the
+configured dropdown value or footnote; it does not change the source control.
+
+```json
+[
+	{
+		"type": "date",
+		"id": "review-date",
+		"name": "reviewDate",
+		"label": "Review Date"
+	},
+	{
+		"type": "select",
+		"id": "call-outcome",
+		"name": "callOutcome",
+		"label": "Call Outcome",
+		"options": [
+			{
+				"label": "Customer unavailable",
+				"value": "Customer was not available for call on !{#review-date}"
+			},
+			{ "label": "Scheduled", "value": "scheduled" }
+		],
+		"footnotes": [
+			{
+				"test": "scheduled",
+				"footnote": "Follow-up scheduled for !{#review-date}"
+			}
+		]
+	}
+]
+```
+
+Every token in the original configured string is resolved from a same-form
+control by `id`, so a value can contain more than one reference. An unknown or
+empty source leaves its token unchanged, and injected text is not parsed again.
+Only dropdown configuration is an interpolation destination; referenced
+controls may be any workflow form control. Feedback forms do not interpolate
+these references.
+
 </details>
 
 <details>
