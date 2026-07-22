@@ -399,6 +399,7 @@ export const APP = {
 
 		APP.form?.addEventListener("reset", () =>
 			requestAnimationFrame(() => {
+				APP._internals.form.resetLists();
 				onFormReset?.();
 			}),
 		);
@@ -1291,6 +1292,13 @@ export const APP = {
 						control instanceof HTMLFieldSetElement &&
 						control.classList.contains("list"),
 				);
+			},
+			resetLists() {
+				this.lists.forEach(list => {
+					list.querySelectorAll(".list-remove").forEach(button => {
+						button.closest("li")?.remove();
+					});
+				});
 			},
 			get numberInputs() {
 				return this.inputs.filter(
