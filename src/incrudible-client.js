@@ -1,3 +1,7 @@
+import { DAYS } from "./values/days.js";
+
+export { DAYS };
+
 // incrudible-client — shared client framework for InCRUDibly-based Apps
 // Script apps. `APP` is the only export; it's the house for everything
 // (DOM accessors as live getters, render helpers, rule state), so a
