@@ -1191,12 +1191,12 @@ export const APP = {
 				}
 			},
 		},
-		dependenciesMet: (dependencies = new Map(), targetForm = APP.form) => {
+		whenMet: (when = new Map(), targetForm = APP.form) => {
 			const data = new FormData(targetForm);
 
-			for (const [name, test] of dependencies) {
+			for (const [name, test] of when) {
 				if (!targetForm.elements.namedItem(name)) {
-					console.warn(`Dependency references unknown control "${name}"`);
+					console.warn(`When condition references unknown control "${name}"`);
 				}
 
 				if (!APP._internals.match(test, data.getAll(name))) {
@@ -1390,8 +1390,16 @@ export const APP = {
 					}
 
 					const footnote = APP.rules.footnoteRules[control.name]
-						?.filter(r =>
-							APP._internals.match(r.test, APP._internals.getValue(control)),
+						?.filter(
+							r =>
+								APP._internals.match(
+									r.test,
+									APP._internals.getValue(control),
+								) &&
+								APP._internals.whenMet(
+									new Map(r.when),
+									control.form,
+								),
 						)
 						.map(r => this.resolveValueReferences(r.footnote, control))
 						.join(" ");
@@ -1517,8 +1525,8 @@ export const APP = {
 						.filter(
 							r =>
 								APP._internals.match(r.test, values) &&
-								APP._internals.dependenciesMet(
-									new Map(r.dependencies),
+								APP._internals.whenMet(
+									new Map(r.when),
 									targetForm,
 								),
 						)
@@ -1551,8 +1559,8 @@ export const APP = {
 				const rule = activeRules.find(
 					r =>
 						APP._internals.match(r.test, values) &&
-						APP._internals.dependenciesMet(
-							new Map(r.dependencies),
+					APP._internals.whenMet(
+						new Map(r.when),
 							target.form,
 						),
 				);
@@ -1598,8 +1606,8 @@ export const APP = {
 						const rule = activeRules[i] || {};
 						const show =
 							APP._internals.match(rule.test, values) &&
-							APP._internals.dependenciesMet(
-								new Map(rule.dependencies),
+							APP._internals.whenMet(
+								new Map(rule.when),
 								targetForm,
 							);
 
@@ -1658,8 +1666,8 @@ export const APP = {
 						const rule = activeRules[node.dataset.ruleIndex] || {};
 						const show =
 							APP._internals.match(rule.test, values) &&
-							APP._internals.dependenciesMet(
-								new Map(rule.dependencies),
+							APP._internals.whenMet(
+								new Map(rule.when),
 								targetForm,
 							);
 

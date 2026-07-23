@@ -2,7 +2,7 @@
 
 Every control type, each shown as a complete, standalone config example,
 with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`, `append`)
-and `dependencies` demonstrated so you can see the full range
+and `when` demonstrated so you can see the full range
 of what each control supports, not just a single happy-path config.
 
 ## Utility Controls
@@ -71,7 +71,7 @@ are omitted from the preview and submission.
 				"confirmText": "Yes, escalate",
 				"cancelText": "Cancel"
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": false,
@@ -90,7 +90,7 @@ are omitted from the preview and submission.
 				"variant": "warning",
 				"message": "Urgent cases must be escalated within 1 hour."
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": false,
@@ -104,7 +104,7 @@ are omitted from the preview and submission.
 		{
 			"test": true,
 			"footnote": "urgent",
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": false,
@@ -138,7 +138,7 @@ are omitted from the preview and submission.
 }
 ```
 
-`append` follows the same `test`/`dependencies` convention as `wizards`
+`append` follows the same `test`/`when` convention as `wizards`
 (same bare-vs-wrapped checkbox/radio rules), but appends the revealed control
 to the caller's parent fieldset. When the caller has no fieldset parent, it
 appends to the form. No special styling applies: the revealed control renders
@@ -284,7 +284,7 @@ submitting the returned Drive metadata with the rest of the form.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"dependencies": [["routingDepartment", "billing"]]
+			"when": [["routingDepartment", "billing"]]
 		},
 		{
 			"test": "/^0(\\.0+)?$/",
@@ -310,7 +310,7 @@ submitting the returned Drive metadata with the rest of the form.
 				"variant": "warning",
 				"message": "High-value claim, secondary approval required."
 			},
-			"dependencies": [["routingDepartment", "billing"]]
+			"when": [["routingDepartment", "billing"]]
 		}
 	],
 	"footnotes": [
@@ -408,7 +408,7 @@ flagged.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		}
 	],
 	"alerts": [
@@ -431,7 +431,7 @@ flagged.
 		{
 			"test": "/^202[0-3]/",
 			"footnote": "aged case",
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		},
 		{
 			"test": "2020-01-01",
@@ -492,7 +492,7 @@ flagged.
 				"confirmText": "Yes, page now",
 				"cancelText": "Not yet"
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		}
 	],
 	"alerts": [
@@ -515,7 +515,7 @@ flagged.
 		{
 			"test": "/T(0[0-6]):/",
 			"footnote": "after-hours",
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		}
 	],
 	"wizards": [
@@ -639,7 +639,7 @@ key rules off of) - the same kind of gap `Fieldset` (no rules at all) and
 `TextArea` (no `wizards`/`append`) already have. It can still be the *target*
 of another control's wizard/append rule (shown/hidden as a whole), and its
 always-present first entry's name
-(`${name}_0`) can be used as a `dependencies` source elsewhere in the
+(`${name}_0`) can be used as a `when` source elsewhere in the
 schema, since that's a real, unchanging control name.
 
 </details>
@@ -694,7 +694,7 @@ schema, since that's a real, unchanging control name.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		},
 		{
 			"test": "duplicate",
@@ -726,7 +726,7 @@ schema, since that's a real, unchanging control name.
 		{
 			"test": "fraud",
 			"footnote": "compliance notified",
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		},
 		{
 			"test": "duplicate",
@@ -786,7 +786,7 @@ schema, since that's a real, unchanging control name.
 				"variant": "caution",
 				"message": "High attempt count, review case status."
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": "0",
@@ -865,7 +865,7 @@ fractional values freely instead of snapping to whole numbers.
 				"confirmText": "Yes, escalate",
 				"cancelText": "Cancel"
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": "billing",
@@ -897,7 +897,7 @@ fractional values freely instead of snapping to whole numbers.
 		{
 			"test": "escalations",
 			"footnote": "escalated",
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		},
 		{
 			"test": "billing",
@@ -1001,7 +1001,7 @@ workflow form control. Feedback forms do not interpolate these references.
 				"variant": "caution",
 				"message": "Use the Mark as Urgent checkbox for routing purposes."
 			},
-			"dependencies": [["isUrgent", false]]
+			"when": [["isUrgent", false]]
 		}
 	],
 	"footnotes": [
@@ -1081,7 +1081,7 @@ which of the six you pick.
 				"variant": "caution",
 				"message": "Double-check this address before sending replies."
 			},
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		}
 	],
 	"footnotes": [
@@ -1092,7 +1092,7 @@ which of the six you pick.
 		{
 			"test": "/@competitor\\.com$/i",
 			"footnote": "unverified domain",
-			"dependencies": [["routingDepartment", "escalations"]]
+			"when": [["routingDepartment", "escalations"]]
 		}
 	],
 	"wizards": [
@@ -1159,7 +1159,7 @@ which of the six you pick.
 				"confirmText": "Yes, page now",
 				"cancelText": "Not yet"
 			},
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		}
 	],
 	"alerts": [
@@ -1182,7 +1182,7 @@ which of the six you pick.
 		{
 			"test": "/^0[0-6]:/",
 			"footnote": "outside business hours",
-			"dependencies": [["priority", "high"]]
+			"when": [["priority", "high"]]
 		}
 	],
 	"wizards": [
