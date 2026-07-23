@@ -1,8 +1,8 @@
 # Form Control Reference
 
 Every control type, each shown as a complete, standalone config example,
-with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`, `mount`,
-`siblings`) and `dependencies` demonstrated so you can see the full range
+with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`, `append`)
+and `dependencies` demonstrated so you can see the full range
 of what each control supports, not just a single happy-path config.
 
 ## Utility Controls
@@ -125,7 +125,7 @@ are omitted from the preview and submission.
 			}
 		}
 	],
-	"mount": [
+	"append": [
 		{
 			"test": true,
 			"wizard": {
@@ -134,31 +134,17 @@ are omitted from the preview and submission.
 				"name": "escalationContact",
 				"label": "Escalation Contact"
 			}
-		}
-	],
-	"siblings": [
-		{
-			"test": true,
-			"wizard": {
-				"type": "text",
-				"id": "escalationTicket",
-				"name": "escalationTicket",
-				"label": "Escalation Ticket #"
-			}
-		}
 	]
 }
 ```
 
-`mount`/`siblings` follow the same `test`/`dependencies` convention as
-`wizards` (same bare-vs-wrapped checkbox/radio rules), but change where
-the revealed control ends up instead of nesting it in a wizard fieldset:
-`mount` appends it to the end of the form, `siblings` inserts it
-immediately after this control as a plain sibling. No special styling
-applies to either - the revealed control renders exactly as it would if
-authored directly at that position in the schema. Supported on the same
-types as `wizards` (`Dropdown`-based, `Input`-based, and `Checkbox`); not
-supported on `Fieldset`, `List`, or `TextArea`.
+`append` follows the same `test`/`dependencies` convention as `wizards`
+(same bare-vs-wrapped checkbox/radio rules), but appends the revealed control
+to the caller's parent fieldset. When the caller has no fieldset parent, it
+appends to the form. No special styling applies: the revealed control renders
+exactly as it would if authored directly at that position in the schema.
+Supported on the same types as `wizards` (`Dropdown`-based, `Input`-based,
+and `Checkbox`); not supported on `Fieldset`, `List`, or `TextArea`.
 
 Radio group (same `name`, distinct `value`s, each entry follows this same
 shape with `"type": "radio"`):
@@ -552,7 +538,7 @@ flagged.
 <summary><strong>Fieldset</strong></summary>
 
 No `name`, `value`, `constraints`, `modals`, `alerts`, `footnotes`,
-`wizards`, `mount`, `siblings`, or `width` override: always full-width,
+`wizards`, `append`, or `width` override: always full-width,
 purely a grouping of `members`. Members can themselves be another
 `fieldset`, recursively:
 
@@ -647,12 +633,12 @@ Bare `"list"` (defaults each entry to `text`):
 }
 ```
 
-No `modals`, `alerts`, `footnotes`, `wizards`, `mount`, or `siblings`
+No `modals`, `alerts`, `footnotes`, `wizards`, or `append`
 support on the list itself (no single control has "the" list's value to
 key rules off of) - the same kind of gap `Fieldset` (no rules at all) and
-`TextArea` (no `wizards`/`mount`/`siblings`) already have. It can still
-be the *target* of another control's wizard/mount/siblings rule (shown/
-hidden as a whole), and its always-present first entry's name
+`TextArea` (no `wizards`/`append`) already have. It can still be the *target*
+of another control's wizard/append rule (shown/hidden as a whole), and its
+always-present first entry's name
 (`${name}_0`) can be used as a `dependencies` source elsewhere in the
 schema, since that's a real, unchanging control name.
 
@@ -689,7 +675,7 @@ schema, since that's a real, unchanging control name.
 			}
 		}
 	],
-	"mount": [
+	"append": [
 		{
 			"test": "fraud",
 			"wizard": {
@@ -698,18 +684,6 @@ schema, since that's a real, unchanging control name.
 				"name": "complianceCaseNumber",
 				"label": "Compliance Case Number"
 			}
-		}
-	],
-	"siblings": [
-		{
-			"test": "duplicate",
-			"wizard": {
-				"type": "text",
-				"id": "originalCaseId",
-				"name": "originalCaseId",
-				"label": "Original Case ID"
-			}
-		}
 	],
 	"modals": [
 		{
@@ -1039,7 +1013,7 @@ workflow form control. Feedback forms do not interpolate these references.
 }
 ```
 
-Note: `textarea` does not support `wizards`, `mount`, or `siblings`; it's
+Note: `textarea` does not support `wizards` or `append`; it's
 excluded on this one type only, everything else above still applies.
 
 </details>
@@ -1132,7 +1106,7 @@ which of the six you pick.
 			}
 		}
 	],
-	"mount": [
+	"append": [
 		{
 			"test": "/@competitor\\.com$/i",
 			"wizard": {
@@ -1141,18 +1115,6 @@ which of the six you pick.
 				"name": "externalDomainJustification",
 				"label": "Reason for External Domain"
 			}
-		}
-	],
-	"siblings": [
-		{
-			"test": "/@example\\.com$/i",
-			"wizard": {
-				"type": "text",
-				"id": "internalExtension",
-				"name": "internalExtension",
-				"label": "Internal Extension"
-			}
-		}
 	]
 }
 ```
