@@ -70,6 +70,18 @@ export const APP = {
 	get messageModalDismiss() {
 		return document.getElementById("message-modal-dismiss-button");
 	},
+	get embedModal() {
+		return document.getElementById("embed-modal");
+	},
+	get embedModalClose() {
+		return document.getElementById("embed-modal-close");
+	},
+	get embedModalHeader() {
+		return document.getElementById("embed-modal-header");
+	},
+	get embedModalFrame() {
+		return document.getElementById("embed-modal-frame");
+	},
 	get feedbackDrawer() {
 		return document.getElementById("feedback-drawer");
 	},
@@ -379,6 +391,11 @@ export const APP = {
 		APP.messageModal?.addEventListener("close", () =>
 			APP.publish("modal:closed"),
 		);
+		APP.embedModalClose?.addEventListener("click", () => APP.embedModal?.close());
+		APP.embedModal?.addEventListener("close", () => {
+			APP.embedModalFrame?.removeAttribute("src");
+			APP.publish("modal:closed");
+		});
 
 		// Delegated: copy buttons embedded in notify() message markup, e.g.
 		// the feedback:submitted subscriber's record-ID copy button below.
@@ -1762,6 +1779,8 @@ export const APP = {
 				APP.notify(modal.message, modal);
 			} else if (modal?.type === "confirm") {
 				APP.confirm(modal.message, modal);
+			} else if (modal?.type === "embed") {
+				return APP.embed(modal);
 			} else {
 				return false;
 			}
@@ -1876,6 +1895,24 @@ export const APP = {
 		APP.confirmModal.returnValue = "";
 		APP.confirmModal.showModal();
 		APP.publish("modal:opened");
+	},
+	embed: ({ header = "Embedded content", src } = {}) => {
+		if (
+			typeof src !== "string" ||
+			!src.trim() ||
+			!APP.embedModal ||
+			!APP.embedModalHeader ||
+			!APP.embedModalFrame
+		) {
+			return false;
+		}
+
+		APP.embedModalHeader.innerHTML = marked.parseInline(header);
+		APP.embedModalFrame.title = APP.embedModalHeader.textContent || "Embedded content";
+		APP.embedModalFrame.src = src.trim();
+		APP.embedModal.showModal();
+		APP.publish("modal:opened");
+		return true;
 	},
 	next: (event, callback) => {
 		return APP._internals.bus.next(event, callback);
