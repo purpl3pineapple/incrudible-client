@@ -1191,12 +1191,12 @@ export const APP = {
 				}
 			},
 		},
-		whenMet: (when = new Map(), targetForm = APP.form) => {
+		when: (dependencies = new Map(), targetForm = APP.form) => {
 			const data = new FormData(targetForm);
 
-			for (const [name, test] of when) {
+			for (const [name, test] of dependencies) {
 				if (!targetForm.elements.namedItem(name)) {
-					console.warn(`When condition references unknown control "${name}"`);
+					console.warn(`Dependency references unknown control "${name}"`);
 				}
 
 				if (!APP._internals.match(test, data.getAll(name))) {
@@ -1396,7 +1396,7 @@ export const APP = {
 									r.test,
 									APP._internals.getValue(control),
 								) &&
-								APP._internals.whenMet(
+									APP._internals.when(
 									new Map(r.when),
 									control.form,
 								),
@@ -1525,7 +1525,7 @@ export const APP = {
 						.filter(
 							r =>
 								APP._internals.match(r.test, values) &&
-								APP._internals.whenMet(
+								APP._internals.when(
 									new Map(r.when),
 									targetForm,
 								),
@@ -1559,7 +1559,7 @@ export const APP = {
 				const rule = activeRules.find(
 					r =>
 						APP._internals.match(r.test, values) &&
-					APP._internals.whenMet(
+					APP._internals.when(
 						new Map(r.when),
 							target.form,
 						),
@@ -1606,7 +1606,7 @@ export const APP = {
 						const rule = activeRules[i] || {};
 						const show =
 							APP._internals.match(rule.test, values) &&
-							APP._internals.whenMet(
+							APP._internals.when(
 								new Map(rule.when),
 								targetForm,
 							);
@@ -1666,7 +1666,7 @@ export const APP = {
 						const rule = activeRules[node.dataset.ruleIndex] || {};
 						const show =
 							APP._internals.match(rule.test, values) &&
-							APP._internals.whenMet(
+							APP._internals.when(
 								new Map(rule.when),
 								targetForm,
 							);
