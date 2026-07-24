@@ -1165,9 +1165,11 @@ export const APP = {
 					targetForm.querySelectorAll("input, select, textarea"),
 				)
 					.some(control =>
-						control.name &&
 							!control.disabled &&
-							APP._internals.match(nameMatcher, [control.name]) &&
+							APP._internals.match(
+								nameMatcher,
+								[control.name, control.id].filter(Boolean),
+							) &&
 							APP._internals.match(
 								test,
 								APP._internals.getValue(control, targetForm),
