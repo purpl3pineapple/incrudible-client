@@ -129,11 +129,11 @@ are omitted from the preview and submission.
 ```
 
 `criteria` keeps a control in its authored position and shows it only while
-every `[cssNameCriteria, test]` pair has at least one matching control whose value passes
-its test. The first value is inserted into `[name${cssNameCriteria}]`, so use
-CSS attribute criteria such as `="isUrgent"` or `$="Status"`; values use the
-usual literal or `/pattern/flags` regex matching. Hidden controls are disabled
-and excluded from submission.
+every `[nameMatcher, test]` pair has at least one enabled control whose name and
+value pass their tests. `nameMatcher` is an exact name or a `/pattern/flags`
+regex, so one gate can match multiple names; values use the usual literal or
+`/pattern/flags` regex matching. Hidden controls are disabled and excluded from
+submission.
 
 ```json
 {
@@ -141,7 +141,7 @@ and excluded from submission.
 	"id": "escalationContact",
 	"name": "escalationContact",
 	"label": "Escalation Contact",
-	"criteria": [["$=\"Status\"", "approved"]]
+	"criteria": [["/^(managerStatus|legalStatus)$/", "approved"]]
 }
 ```
 

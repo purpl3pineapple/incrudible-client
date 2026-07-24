@@ -1160,12 +1160,14 @@ export const APP = {
 			},
 		},
 		when: (dependencies = [], targetForm = APP.form) =>
-			dependencies.every(([cssNameCriteria, test]) =>
+			dependencies.every(([nameMatcher, test]) =>
 				Array.from(
-					targetForm.querySelectorAll(`[name${cssNameCriteria}]`),
+					targetForm.querySelectorAll("input, select, textarea"),
 				)
 					.some(control =>
-						!control.disabled &&
+						control.name &&
+							!control.disabled &&
+							APP._internals.match(nameMatcher, [control.name]) &&
 							APP._internals.match(
 								test,
 								APP._internals.getValue(control, targetForm),
