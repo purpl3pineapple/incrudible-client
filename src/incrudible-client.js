@@ -1005,20 +1005,12 @@ export const APP = {
 		// preceding sibling instead means the fieldset's own boxed "shell"
 		// can be hidden entirely while nothing is currently eligible to
 		// reveal (see the dataset.type check in syncWizards below), without
-		// also hiding the controller itself. Both the controller and the
-		// fieldset are forced full-width so a wizard-controlling checkbox
-		// always claims its own row, rather than a partial-width fieldset
-		// landing in the middle of a row an adjacent control was sharing
-		// with the checkbox. A plain (non-wizard) checkbox still respects
-		// entry.width as normal.
+		// also hiding the controller itself.
 		if (["checkbox", "radio"].includes(entry.type)) {
-			fieldset.className = "wizard w-1";
+			fieldset.className = `wizard w-${entry.width || 1}`;
 			fieldset.append(...children);
 
-			const controller = APP.renderFormControl(
-				Object.assign({}, entry, { width: 1 }),
-				rule,
-			);
+			const controller = APP.renderFormControl(entry, rule);
 			const group = document.createDocumentFragment();
 			group.append(controller, fieldset);
 
