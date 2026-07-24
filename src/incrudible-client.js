@@ -70,18 +70,6 @@ export const APP = {
 	get messageModalDismiss() {
 		return document.getElementById("message-modal-dismiss-button");
 	},
-	get embedModal() {
-		return document.getElementById("embed-modal");
-	},
-	get embedModalClose() {
-		return document.getElementById("embed-modal-close");
-	},
-	get embedModalHeader() {
-		return document.getElementById("embed-modal-header");
-	},
-	get embedModalFrame() {
-		return document.getElementById("embed-modal-frame");
-	},
 	get feedbackDrawer() {
 		return document.getElementById("feedback-drawer");
 	},
@@ -154,6 +142,15 @@ export const APP = {
 	get confirmModalMessage() {
 		return document.getElementById("confirm-modal-message");
 	},
+	get workflowArticle() {
+		return document.getElementById("workflow-article");
+	},
+	get workflowArticleHeader() {
+		return document.getElementById("workflow-article-header");
+	},
+	get workflowArticleFrame() {
+		return document.getElementById("workflow-article-frame");
+	},
 
 	// Active workflow's rule maps, plus feedback's own. Each app's own
 	// mountWorkflow/resetWorkflow, and each app's own feedback-init line,
@@ -162,6 +159,7 @@ export const APP = {
 	// unlike reassigning a bare imported binding.
 	rules: {
 		modalRules: {},
+		articleRules: {},
 		alertRules: {},
 		footnoteRules: {},
 		wizardRules: {},
@@ -388,11 +386,6 @@ export const APP = {
 		APP.messageModal?.addEventListener("close", () =>
 			APP.publish("modal:closed"),
 		);
-		APP.embedModalClose?.addEventListener("click", () => APP.embedModal?.close());
-		APP.embedModal?.addEventListener("close", () => {
-			APP.embedModalFrame?.removeAttribute("src");
-			APP.publish("modal:closed");
-		});
 
 		// Delegated: copy buttons embedded in notify() message markup, e.g.
 		// the feedback:submitted subscriber's record-ID copy button below.
@@ -1551,6 +1544,24 @@ export const APP = {
 
 				APP._internals.showModal(rule.modal);
 			},
+			syncArticles(targetForm = APP.form) {
+				const rules = APP.rules.articleRules;
+				const data = new FormData(targetForm);
+				const rule = Object.entries(rules)
+					.flatMap(([name, articles]) =>
+						articles.filter(
+							article =>
+								APP._internals.match(article.test, data.getAll(name)) &&
+								APP._internals.when(article.when, targetForm),
+						),
+					)
+					.at(0);
+
+				if (!rule || !APP._internals.showArticle(rule.article)) {
+					APP._internals.hideArticle();
+					return;
+				}
+			},
 			syncWizards(e, targetForm = APP.form) {
 				const syncCriteria = () => {
 					const rules =
@@ -1731,12 +1742,55 @@ export const APP = {
 				APP.notify(modal.message, modal);
 			} else if (modal?.type === "confirm") {
 				APP.confirm(modal.message, modal);
-			} else if (modal?.type === "embed") {
-				return APP.embed(modal);
 			} else {
 				return false;
 			}
 
+			return true;
+		},
+		hideArticle: () => {
+			APP.workflowArticleFrame?.removeAttribute("src");
+			APP.workflowArticle?.setAttribute("hidden", "");
+		},
+		showArticle: ({ header = "Additional workflow", resource = {} } = {}) => {
+			if (typeof resource.id !== "string" || !resource.id.trim()) {
+				return false;
+			}
+
+			const id = resource.id.trim();
+			let src;
+
+			switch (resource.type) {
+				case "doc":
+					src = `https://docs.google.com/document/d/${id}/preview`;
+					break;
+				case "form":
+					src = `https://docs.google.com/forms/d/e/${id}/viewform?embedded=true`;
+					break;
+				case "pdf":
+					src = `https://drive.google.com/file/d/${id}/preview`;
+					break;
+				default:
+					return false;
+			}
+
+			if (
+				!APP.workflowArticle ||
+				!APP.workflowArticleHeader ||
+				!APP.workflowArticleFrame
+			) {
+				return false;
+			}
+
+			APP.workflowArticleHeader.innerHTML = marked.parseInline(header);
+			APP.workflowArticleFrame.title =
+				APP.workflowArticleHeader.textContent || "Workflow";
+
+			if (APP.workflowArticleFrame.getAttribute("src") !== src) {
+				APP.workflowArticleFrame.src = src;
+			}
+
+			APP.workflowArticle.hidden = false;
 			return true;
 		},
 	},
@@ -1847,24 +1901,6 @@ export const APP = {
 		APP.confirmModal.returnValue = "";
 		APP.confirmModal.showModal();
 		APP.publish("modal:opened");
-	},
-	embed: ({ header = "Embedded content", src } = {}) => {
-		if (
-			typeof src !== "string" ||
-			!src.trim() ||
-			!APP.embedModal ||
-			!APP.embedModalHeader ||
-			!APP.embedModalFrame
-		) {
-			return false;
-		}
-
-		APP.embedModalHeader.innerHTML = marked.parseInline(header);
-		APP.embedModalFrame.title = APP.embedModalHeader.textContent || "Embedded content";
-		APP.embedModalFrame.src = src.trim();
-		APP.embedModal.showModal();
-		APP.publish("modal:opened");
-		return true;
 	},
 	next: (event, callback) => {
 		return APP._internals.bus.next(event, callback);
