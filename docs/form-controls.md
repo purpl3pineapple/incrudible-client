@@ -71,7 +71,7 @@ are omitted from the preview and submission.
 				"confirmText": "Yes, escalate",
 				"cancelText": "Cancel"
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": false,
@@ -90,7 +90,7 @@ are omitted from the preview and submission.
 				"variant": "warning",
 				"message": "Urgent cases must be escalated within 1 hour."
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": false,
@@ -104,7 +104,7 @@ are omitted from the preview and submission.
 		{
 			"test": true,
 			"footnote": "urgent",
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": false,
@@ -283,7 +283,7 @@ submitting the returned Drive metadata with the rest of the form.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"when": [["routingDepartment", "billing"]]
+			"when": [["=\"routingDepartment\"", "billing"]]
 		},
 		{
 			"test": "/^0(\\.0+)?$/",
@@ -309,7 +309,7 @@ submitting the returned Drive metadata with the rest of the form.
 				"variant": "warning",
 				"message": "High-value claim, secondary approval required."
 			},
-			"when": [["routingDepartment", "billing"]]
+			"when": [["=\"routingDepartment\"", "billing"]]
 		}
 	],
 	"footnotes": [
@@ -407,7 +407,7 @@ flagged.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		}
 	],
 	"alerts": [
@@ -430,7 +430,7 @@ flagged.
 		{
 			"test": "/^202[0-3]/",
 			"footnote": "aged case",
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		},
 		{
 			"test": "2020-01-01",
@@ -491,7 +491,7 @@ flagged.
 				"confirmText": "Yes, page now",
 				"cancelText": "Not yet"
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		}
 	],
 	"alerts": [
@@ -514,7 +514,7 @@ flagged.
 		{
 			"test": "/T(0[0-6]):/",
 			"footnote": "after-hours",
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		}
 	],
 	"wizards": [
@@ -681,7 +681,7 @@ schema, since that's a real, unchanging control name.
 				"confirmText": "Yes",
 				"cancelText": "Cancel"
 			},
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		},
 		{
 			"test": "duplicate",
@@ -713,7 +713,7 @@ schema, since that's a real, unchanging control name.
 		{
 			"test": "fraud",
 			"footnote": "compliance notified",
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		},
 		{
 			"test": "duplicate",
@@ -773,7 +773,7 @@ schema, since that's a real, unchanging control name.
 				"variant": "caution",
 				"message": "High attempt count, review case status."
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": "0",
@@ -852,7 +852,7 @@ fractional values freely instead of snapping to whole numbers.
 				"confirmText": "Yes, escalate",
 				"cancelText": "Cancel"
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": "billing",
@@ -884,7 +884,7 @@ fractional values freely instead of snapping to whole numbers.
 		{
 			"test": "escalations",
 			"footnote": "escalated",
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		},
 		{
 			"test": "billing",
@@ -988,7 +988,7 @@ workflow form control. Feedback forms do not interpolate these references.
 				"variant": "caution",
 				"message": "Use the Mark as Urgent checkbox for routing purposes."
 			},
-			"when": [["isUrgent", false]]
+			"when": [["=\"isUrgent\"", false]]
 		}
 	],
 	"footnotes": [
@@ -1068,7 +1068,7 @@ which of the six you pick.
 				"variant": "caution",
 				"message": "Double-check this address before sending replies."
 			},
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		}
 	],
 	"footnotes": [
@@ -1079,7 +1079,7 @@ which of the six you pick.
 		{
 			"test": "/@competitor\\.com$/i",
 			"footnote": "unverified domain",
-			"when": [["routingDepartment", "escalations"]]
+			"when": [["=\"routingDepartment\"", "escalations"]]
 		}
 	],
 	"wizards": [
@@ -1136,7 +1136,7 @@ which of the six you pick.
 				"confirmText": "Yes, page now",
 				"cancelText": "Not yet"
 			},
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		}
 	],
 	"alerts": [
@@ -1159,7 +1159,7 @@ which of the six you pick.
 		{
 			"test": "/^0[0-6]:/",
 			"footnote": "outside business hours",
-			"when": [["priority", "high"]]
+			"when": [["=\"priority\"", "high"]]
 		}
 	],
 	"wizards": [

@@ -1168,33 +1168,19 @@ export const APP = {
 				}
 			},
 		},
-		when: (dependencies = new Map(), targetForm = APP.form) => {
-			const data = new FormData(targetForm);
-
-			for (const [name, test] of dependencies) {
-				if (!targetForm.elements.namedItem(name)) {
-					console.warn(`Dependency references unknown control "${name}"`);
-				}
-
-				if (!APP._internals.match(test, data.getAll(name))) {
-					return false;
-				}
-			}
-
-			return true;
-		},
-		criteria: (criteria = [], targetForm = APP.form) => {
-			const data = new FormData(targetForm);
-
-			return criteria.every(([cssNameCriteria, test]) =>
+		when: (dependencies = [], targetForm = APP.form) =>
+			dependencies.every(([cssNameCriteria, test]) =>
 				Array.from(
 					targetForm.querySelectorAll(`[name${cssNameCriteria}]`),
 				)
 					.some(control =>
-						APP._internals.match(test, data.getAll(control.name)),
+						!control.disabled &&
+							APP._internals.match(
+								test,
+								APP._internals.getValue(control, targetForm),
+							),
 					),
-			);
-		},
+			),
 		feedback: {
 			records: undefined,
 			syncRecords: () => {
@@ -1386,7 +1372,7 @@ export const APP = {
 									APP._internals.getValue(control),
 								) &&
 									APP._internals.when(
-									new Map(r.when),
+										r.when,
 									control.form,
 								),
 						)
@@ -1515,7 +1501,7 @@ export const APP = {
 							r =>
 								APP._internals.match(r.test, values) &&
 								APP._internals.when(
-									new Map(r.when),
+									r.when,
 									targetForm,
 								),
 						)
@@ -1549,7 +1535,7 @@ export const APP = {
 					r =>
 						APP._internals.match(r.test, values) &&
 						APP._internals.when(
-							new Map(r.when),
+							r.when,
 							target.form,
 						),
 				);
@@ -1563,7 +1549,7 @@ export const APP = {
 			syncWizards(e, targetForm = APP.form) {
 				const syncCriteria = () => {
 					targetForm?.querySelectorAll("[data-criteria]").forEach(node => {
-						const show = APP._internals.criteria(
+						const show = APP._internals.when(
 							JSON.parse(node.dataset.criteria),
 							targetForm,
 						);
@@ -1615,7 +1601,7 @@ export const APP = {
 						const show =
 							APP._internals.match(rule.test, values) &&
 							APP._internals.when(
-								new Map(rule.when),
+								rule.when,
 								targetForm,
 							);
 
@@ -1687,7 +1673,7 @@ export const APP = {
 			}
 
 			return control.multiple
-				? new FormData(targetForm).getAll(control.name)
+				? Array.from(control.selectedOptions, option => option.value)
 				: [control.value];
 		},
 		match: (test, values) => {
