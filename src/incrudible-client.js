@@ -1209,10 +1209,23 @@ export const APP = {
 				const rowText = this.preview
 					.map(([, label, value]) => `${label}: ${value}`)
 					.join(" | ");
-				const department = APP.activeFlowLink?.textContent?.trim() || "";
+				const activeFlowLink = APP.activeFlowLink;
+				const categoryDropdown = activeFlowLink?.closest(".nav-dropdown");
+				const departmentDropdown = categoryDropdown?.parentElement?.closest(
+					".nav-dropdown",
+				);
+				const category = activeFlowLink?.textContent?.trim() || "";
+				const subdomain = categoryDropdown
+					?.querySelector(":scope > .dropdown-button")
+					?.textContent?.trim();
+				const department = departmentDropdown
+					?.querySelector(":scope > .dropdown-button")
+					?.textContent?.trim() || category;
 				const prefix = APP.workflow && typeof APP.workflow === "object"
 					? [department, APP.workflowLabel]
-					: [`${department} (${APP.workflowLabel})`];
+					: departmentDropdown
+						? [`${department} (${subdomain})`, `Category: ${category}`]
+						: [`${department} (${APP.workflowLabel})`];
 
 				return rowText
 					? [...prefix, rowText].filter(Boolean).join(" | ")
