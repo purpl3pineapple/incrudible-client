@@ -1556,34 +1556,23 @@ export const APP = {
 			},
 			syncWizards(e, targetForm = APP.form) {
 				const syncCriteria = () => {
-					const criteriaRules =
+					const rules =
 						targetForm === APP.feedbackForm
 							? APP.rules.feedbackCriteriaRules
 							: APP.rules.criteriaRules;
 
-					Object.entries(criteriaRules).forEach(([id, criteria]) => {
-						const control = targetForm?.querySelector(
-							`#${CSS.escape(id)}`,
-						);
-						const label = control?.closest(".form-control");
-						const sibling = label?.nextElementSibling;
-						const parent = label?.parentElement;
-						const node =
-							control instanceof HTMLFieldSetElement
-								? control
-								: sibling instanceof HTMLFieldSetElement &&
-									  sibling.classList.contains("wizard") &&
-									  sibling.previousElementSibling === label
-									? sibling
-									: parent instanceof HTMLFieldSetElement &&
-										  parent.classList.contains("wizard") &&
-										  parent.querySelector(":scope > .form-control") === label
-									? parent
-									: label;
+						Object.entries(rules).forEach(([id, criteria]) => {
+							const target = targetForm?.querySelector(
+								`#${id}`,
+							);
+							const node =
+								target instanceof HTMLFieldSetElement
+									? target
+									: target?.closest(".form-control");
 
-						if (!node) {
-							return;
-						}
+							if (!node) {
+								return;
+							}
 
 						const show = APP._internals.when(
 							criteria,
