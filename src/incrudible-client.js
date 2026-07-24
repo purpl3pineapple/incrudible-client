@@ -1210,22 +1210,24 @@ export const APP = {
 					.map(([, label, value]) => `${label}: ${value}`)
 					.join(" | ");
 				const activeFlowLink = APP.activeFlowLink;
-				const categoryDropdown = activeFlowLink?.closest(".nav-dropdown");
-				const departmentDropdown = categoryDropdown?.parentElement?.closest(
+				const workflowDropdown = activeFlowLink?.closest(".nav-dropdown");
+				const departmentDropdown = workflowDropdown?.parentElement?.closest(
 					".nav-dropdown",
 				);
 				const category = activeFlowLink?.textContent?.trim() || "";
-				const subdomain = categoryDropdown
+				const workflow = workflowDropdown
 					?.querySelector(":scope > .dropdown-button")
 					?.textContent?.trim();
 				const department = departmentDropdown
 					?.querySelector(":scope > .dropdown-button")
-					?.textContent?.trim() || category;
+					?.textContent?.trim() || workflow || category;
 				const prefix = APP.workflow && typeof APP.workflow === "object"
 					? [department, APP.workflowLabel]
 					: departmentDropdown
-						? [`${department} (${subdomain})`, `Category: ${category}`]
-						: [`${department} (${APP.workflowLabel})`];
+						? [`${department} (${workflow})`, `Category: ${category}`]
+						: workflowDropdown
+							? [`${workflow} (${APP.workflowLabel})`]
+							: [APP.workflowLabel];
 
 				return rowText
 					? [...prefix, rowText].filter(Boolean).join(" | ")
