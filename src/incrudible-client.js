@@ -165,7 +165,9 @@ export const APP = {
 		alertRules: {},
 		footnoteRules: {},
 		wizardRules: {},
+		criteriaRules: {},
 		feedbackWizardRules: {},
+		feedbackCriteriaRules: {},
 		feedbackAlertRules: {},
 		feedbackModalRules: {},
 	},
@@ -219,6 +221,7 @@ export const APP = {
 
 		if (feedback) {
 			APP.rules.feedbackWizardRules = feedback?.rules?.wizards || {};
+			APP.rules.feedbackCriteriaRules = feedback?.rules?.criteria || {};
 			APP.rules.feedbackAlertRules = feedback?.rules?.alerts || {};
 			APP.rules.feedbackModalRules = feedback?.rules?.modals || {};
 
@@ -750,10 +753,6 @@ export const APP = {
 		label.className = `form-control w-${entry.width || 1}`;
 		label.htmlFor = entry.id;
 
-		if (entry.criteria) {
-			label.dataset.criteria = JSON.stringify(entry.criteria);
-		}
-
 		if (rule) {
 			label.hidden = true;
 		}
@@ -828,10 +827,6 @@ export const APP = {
 
 			if (entry.name) {
 				fieldset.dataset.name = entry.name;
-			}
-
-			if (entry.criteria) {
-				fieldset.dataset.criteria = JSON.stringify(entry.criteria);
 			}
 
 			if (itemType !== "text") {
@@ -1002,10 +997,6 @@ export const APP = {
 			// wrapped as {wizard, test} with an explicit boolean test
 			APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
 		);
-
-		if (entry.criteria) {
-			fieldset.dataset.criteria = JSON.stringify(entry.criteria);
-		}
 
 		// A checkbox/radio controller never gets its own box regardless of
 		// nesting (see the :has(input[type=checkbox],[type=radio]) rule),
@@ -1563,9 +1554,37 @@ export const APP = {
 			},
 			syncWizards(e, targetForm = APP.form) {
 				const syncCriteria = () => {
-					targetForm?.querySelectorAll("[data-criteria]").forEach(node => {
+					const criteriaRules =
+						targetForm === APP.feedbackForm
+							? APP.rules.feedbackCriteriaRules
+							: APP.rules.criteriaRules;
+
+					Object.entries(criteriaRules).forEach(([id, criteria]) => {
+						const control = targetForm?.querySelector(
+							`#${CSS.escape(id)}`,
+						);
+						const label = control?.closest(".form-control");
+						const sibling = label?.nextElementSibling;
+						const parent = label?.parentElement;
+						const node =
+							control instanceof HTMLFieldSetElement
+								? control
+								: sibling instanceof HTMLFieldSetElement &&
+									  sibling.classList.contains("wizard") &&
+									  sibling.previousElementSibling === label
+									? sibling
+									: parent instanceof HTMLFieldSetElement &&
+										  parent.classList.contains("wizard") &&
+										  parent.querySelector(":scope > .form-control") === label
+									? parent
+									: label;
+
+						if (!node) {
+							return;
+						}
+
 						const show = APP._internals.when(
-							JSON.parse(node.dataset.criteria),
+							criteria,
 							targetForm,
 						);
 
