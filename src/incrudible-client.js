@@ -1159,23 +1159,21 @@ export const APP = {
 				}
 			},
 		},
-		when: (dependencies = [], targetForm = APP.form) =>
-			dependencies.every(([nameMatcher, test]) =>
-				Array.from(
-					targetForm.querySelectorAll("input, select, textarea"),
-				)
-					.some(control =>
-							!control.disabled &&
-							APP._internals.match(
-								nameMatcher,
-								[control.name, control.id].filter(Boolean),
-							) &&
-							APP._internals.match(
-								test,
-								APP._internals.getValue(control, targetForm),
-							),
-					),
-			),
+		when: (dependencies = new Map(), targetForm = APP.form) => {
+			const data = new FormData(targetForm);
+
+			for (const [name, test] of dependencies) {
+				if (!targetForm.elements.namedItem(name)) {
+					console.warn(`Dependency references unknown control "${name}"`);
+				}
+
+				if (!APP._internals.match(test, data.getAll(name))) {
+					return false;
+				}
+			}
+
+			return true;
+		},
 		feedback: {
 			records: undefined,
 			syncRecords: () => {
@@ -1492,8 +1490,7 @@ export const APP = {
 					: APP.rules.alertRules;
 
 				targetForm.querySelectorAll(".control-alerts").forEach(container => {
-					const name = container.dataset.name;
-					const activeRules = rules[name];
+					const activeRules = rules[container.dataset.name];
 					const control = document.getElementById(
 						container.dataset.controlId,
 					);
@@ -1700,7 +1697,7 @@ export const APP = {
 			}
 
 			return control.multiple
-				? Array.from(control.selectedOptions, option => option.value)
+				? new FormData(targetForm).getAll(control.name)
 				: [control.value];
 		},
 		match: (test, values) => {
