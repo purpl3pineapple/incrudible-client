@@ -1183,6 +1183,20 @@ export const APP = {
 
 			return true;
 		},
+		criteria: (criteria = [], targetForm = APP.form) => {
+			const data = new FormData(targetForm);
+			const controls = Array.from(targetForm.elements);
+
+			return criteria.every(([name, test]) =>
+				controls
+					.filter(control =>
+						control.name && APP._internals.match(name, [control.name]),
+					)
+					.some(control =>
+						APP._internals.match(test, data.getAll(control.name)),
+					),
+			);
+		},
 		feedback: {
 			records: undefined,
 			syncRecords: () => {
@@ -1551,8 +1565,8 @@ export const APP = {
 			syncWizards(e, targetForm = APP.form) {
 				const syncCriteria = () => {
 					targetForm?.querySelectorAll("[data-criteria]").forEach(node => {
-						const show = APP._internals.when(
-							new Map(JSON.parse(node.dataset.criteria)),
+						const show = APP._internals.criteria(
+							JSON.parse(node.dataset.criteria),
 							targetForm,
 						);
 
