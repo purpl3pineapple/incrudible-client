@@ -1162,12 +1162,18 @@ export const APP = {
 		when: (dependencies = new Map(), targetForm = APP.form) => {
 			const data = new FormData(targetForm);
 
-			for (const [name, test] of dependencies) {
-				if (!targetForm.elements.namedItem(name)) {
-					console.warn(`Dependency references unknown control "${name}"`);
+			for (const [nameMatcher, test] of dependencies) {
+				const names = [...new Set(data.keys())].filter(name =>
+					APP._internals.match(nameMatcher, [name]),
+				);
+
+				if (!names.length) {
+					console.warn(
+						`Dependency references unknown control "${nameMatcher}"`,
+					);
 				}
 
-				if (!APP._internals.match(test, data.getAll(name))) {
+				if (!names.some(name => APP._internals.match(test, data.getAll(name)))) {
 					return false;
 				}
 			}
