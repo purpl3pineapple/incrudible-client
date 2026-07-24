@@ -1185,13 +1185,11 @@ export const APP = {
 		},
 		criteria: (criteria = [], targetForm = APP.form) => {
 			const data = new FormData(targetForm);
-			const controls = Array.from(targetForm.elements);
 
-			return criteria.every(([name, test]) =>
-				controls
-					.filter(control =>
-						control.name && APP._internals.match(name, [control.name]),
-					)
+			return criteria.every(([cssNameCriteria, test]) =>
+				Array.from(
+					targetForm.querySelectorAll(`[name${cssNameCriteria}]`),
+				)
 					.some(control =>
 						APP._internals.match(test, data.getAll(control.name)),
 					),
