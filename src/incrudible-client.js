@@ -165,11 +165,9 @@ export const APP = {
 		alertRules: {},
 		footnoteRules: {},
 		wizardRules: {},
-		appendRules: {},
 		feedbackWizardRules: {},
 		feedbackAlertRules: {},
 		feedbackModalRules: {},
-		feedbackAppendRules: {},
 	},
 
 	workflowLabel: "",
@@ -223,7 +221,6 @@ export const APP = {
 			APP.rules.feedbackWizardRules = feedback?.rules?.wizards || {};
 			APP.rules.feedbackAlertRules = feedback?.rules?.alerts || {};
 			APP.rules.feedbackModalRules = feedback?.rules?.modals || {};
-			APP.rules.feedbackAppendRules = feedback?.rules?.append || {};
 
 			APP.feedbackFormControls.replaceChildren(
 				APP.renderEntries(feedback.schema),
@@ -753,6 +750,10 @@ export const APP = {
 		label.className = `form-control w-${entry.width || 1}`;
 		label.htmlFor = entry.id;
 
+		if (entry.criteria) {
+			label.dataset.criteria = JSON.stringify(entry.criteria);
+		}
+
 		if (rule) {
 			label.hidden = true;
 		}
@@ -816,7 +817,7 @@ export const APP = {
 		return datalist;
 	},
 
-	renderEntry: (entry, rule, appended = []) => {
+	renderEntry: (entry, rule) => {
 		if (entry.type === "list" || entry.type.startsWith("list:")) {
 			const itemType = entry.type === "list" ? "text" : entry.type.slice(5);
 			const v = entry.constraints || {};
@@ -827,6 +828,10 @@ export const APP = {
 
 			if (entry.name) {
 				fieldset.dataset.name = entry.name;
+			}
+
+			if (entry.criteria) {
+				fieldset.dataset.criteria = JSON.stringify(entry.criteria);
 			}
 
 			if (itemType !== "text") {
@@ -975,31 +980,11 @@ export const APP = {
 
 			fieldset.append(
 				legend,
-				...entry.members.map(member => APP.renderEntry(member, undefined, appended)),
+				...entry.members.map(member => APP.renderEntry(member)),
 			);
 
 			return fieldset;
 		}
-
-		// Appended items may be bare (shown while checked, for checkbox/radio)
-		// or wrapped as {wizard, test} - same convention as wizards. They are
-		// tagged with the controller's id + rule index for syncWizards to find.
-		const tag = (attr, i, node) => {
-			const nodes =
-				node instanceof DocumentFragment ? Array.from(node.children) : [node];
-
-			nodes.forEach(n => {
-				n.dataset[attr] = entry.id;
-				n.dataset.ruleIndex = i;
-			});
-
-			return node;
-		};
-
-		(entry.append || []).forEach((r, i) => {
-			const node = APP.renderEntry(r.wizard || r, r.wizard ? r : {}, appended);
-			appended.push(tag("appendedBy", i, node));
-		});
 
 		if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
 			return APP.renderFormControl(entry, rule);
@@ -1015,8 +1000,12 @@ export const APP = {
 		const children = entry.wizards.map(r =>
 			// checkbox/radio wizard items may be bare (shown while checked) or
 			// wrapped as {wizard, test} with an explicit boolean test
-			APP.renderEntry(r.wizard || r, r.wizard ? r : {}, appended),
+			APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
 		);
+
+		if (entry.criteria) {
+			fieldset.dataset.criteria = JSON.stringify(entry.criteria);
+		}
 
 		// A checkbox/radio controller never gets its own box regardless of
 		// nesting (see the :has(input[type=checkbox],[type=radio]) rule),
@@ -1055,20 +1044,8 @@ export const APP = {
 	},
 
 	renderEntries: entries => {
-		const appended = [];
 		const fragment = document.createDocumentFragment();
-		fragment.append(
-			...entries.map(entry => APP.renderEntry(entry, undefined, appended)),
-		);
-		appended.reverse().forEach(item => {
-			const nodes =
-				item instanceof DocumentFragment ? Array.from(item.children) : [item];
-
-			nodes.forEach(node => {
-				const caller = fragment.getElementById(node.dataset.appendedBy);
-				(caller?.closest("fieldset") || fragment).append(node);
-			});
-		});
+		fragment.append(...entries.map(entry => APP.renderEntry(entry)));
 		return fragment;
 	},
 
@@ -1559,8 +1536,8 @@ export const APP = {
 				const rule = activeRules.find(
 					r =>
 						APP._internals.match(r.test, values) &&
-					APP._internals.when(
-						new Map(r.when),
+						APP._internals.when(
+							new Map(r.when),
 							target.form,
 						),
 				);
@@ -1572,6 +1549,25 @@ export const APP = {
 				APP._internals.showModal(rule.modal);
 			},
 			syncWizards(e, targetForm = APP.form) {
+				const syncCriteria = () => {
+					targetForm?.querySelectorAll("[data-criteria]").forEach(node => {
+						const show = APP._internals.when(
+							new Map(JSON.parse(node.dataset.criteria)),
+							targetForm,
+						);
+
+						node.hidden = !show;
+
+						if (node instanceof HTMLFieldSetElement) {
+							node.disabled = !show;
+						} else {
+							node
+								.querySelectorAll("input, select, textarea")
+								.forEach(control => (control.disabled = !show));
+						}
+					});
+				};
+
 				const syncFieldset = fieldset => {
 					// A checkbox/radio controller renders as the fieldset's
 					// preceding sibling; every other control type still renders
@@ -1642,54 +1638,6 @@ export const APP = {
 					fieldset.disabled = !anyShown;
 				};
 
-				// Appended targets don't stay adjacent to their controller in the
-				// DOM the way a nested wizard fieldset's children do, so they're
-				// found by the data-appended-by + rule index tags renderEntry sets
-				// on them instead of DOM position. Rule counts here are small
-				// (a handful of gating controls per form), so re-evaluating
-				// all of them on every call is cheap - simpler than
-				// replicating the fieldset-adjacency filtering below in
-				// attribute-lookup form.
-				const syncPlaced = (selector, dataKey, rules, feedbackRules) => {
-					targetForm?.querySelectorAll(selector).forEach(node => {
-						const control = document.getElementById(node.dataset[dataKey]);
-
-						if (!control?.name) {
-							return;
-						}
-
-						const values = APP._internals.getValue(control, targetForm);
-						const activeRules =
-							(targetForm === APP.feedbackForm ? feedbackRules : rules)[
-								control.name
-							] || [];
-						const rule = activeRules[node.dataset.ruleIndex] || {};
-						const show =
-							APP._internals.match(rule.test, values) &&
-							APP._internals.when(
-								new Map(rule.when),
-								targetForm,
-							);
-
-						node.hidden = !show;
-
-						if (node instanceof HTMLFieldSetElement) {
-							node.disabled = !show;
-						} else {
-							node
-								.querySelectorAll("input, select, textarea")
-								.forEach(control => (control.disabled = !show));
-						}
-					});
-				};
-
-				syncPlaced(
-					"[data-appended-by]",
-					"appendedBy",
-					APP.rules.appendRules,
-					APP.rules.feedbackAppendRules,
-				);
-
 				const wizards = Array.from(
 					targetForm?.querySelectorAll("fieldset.wizard") ?? [],
 				);
@@ -1702,6 +1650,7 @@ export const APP = {
 							fieldset => !fieldset.parentElement?.closest("fieldset.wizard"),
 						)
 						.forEach(syncFieldset);
+					syncCriteria();
 					return;
 				}
 
@@ -1717,6 +1666,7 @@ export const APP = {
 						return controller?.htmlFor === target.id;
 					})
 					.forEach(syncFieldset);
+				syncCriteria();
 			},
 		},
 		getValue: (control, targetForm = APP.form) => {

@@ -1,8 +1,8 @@
 # Form Control Reference
 
 Every control type, each shown as a complete, standalone config example,
-with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`, `append`)
-and `when` demonstrated so you can see the full range
+with every rule kind (`modals`, `alerts`, `footnotes`, `wizards`) and
+`criteria`/`when` demonstrated so you can see the full range
 of what each control supports, not just a single happy-path config.
 
 ## Utility Controls
@@ -124,27 +124,23 @@ are omitted from the preview and submission.
 				}
 			}
 		}
-	],
-	"append": [
-		{
-			"test": true,
-			"wizard": {
-				"type": "text",
-				"id": "escalationContact",
-				"name": "escalationContact",
-				"label": "Escalation Contact"
-			}
 	]
 }
 ```
 
-`append` follows the same `test`/`when` convention as `wizards`
-(same bare-vs-wrapped checkbox/radio rules), but appends the revealed control
-to the caller's parent fieldset. When the caller has no fieldset parent, it
-appends to the form. No special styling applies: the revealed control renders
-exactly as it would if authored directly at that position in the schema.
-Supported on the same types as `wizards` (`Dropdown`-based, `Input`-based,
-and `Checkbox`); not supported on `Fieldset`, `List`, or `TextArea`.
+`criteria` keeps a control in its authored position and shows it only while
+every `[name, test]` pair passes. It uses the same matching convention as rule
+`when` clauses; hidden controls are disabled and excluded from submission.
+
+```json
+{
+	"type": "text",
+	"id": "escalationContact",
+	"name": "escalationContact",
+	"label": "Escalation Contact",
+	"criteria": [["isUrgent", true]]
+}
+```
 
 Radio group (same `name`, distinct `value`s, each entry follows this same
 shape with `"type": "radio"`):
@@ -538,7 +534,7 @@ flagged.
 <summary><strong>Fieldset</strong></summary>
 
 No `name`, `value`, `constraints`, `modals`, `alerts`, `footnotes`,
-`wizards`, `append`, or `width` override: always full-width,
+`wizards`, `criteria`, or `width` override: always full-width,
 purely a grouping of `members`. Members can themselves be another
 `fieldset`, recursively:
 
@@ -633,11 +629,9 @@ Bare `"list"` (defaults each entry to `text`):
 }
 ```
 
-No `modals`, `alerts`, `footnotes`, `wizards`, or `append`
-support on the list itself (no single control has "the" list's value to
-key rules off of) - the same kind of gap `Fieldset` (no rules at all) and
-`TextArea` (no `wizards`/`append`) already have. It can still be the *target*
-of another control's wizard/append rule (shown/hidden as a whole), and its
+No `modals`, `alerts`, `footnotes`, or `wizards` support on the list itself
+(no single control has "the" list's value to key rules off of). It supports
+`criteria`, so the entire list can be shown or hidden in place. Its
 always-present first entry's name
 (`${name}_0`) can be used as a `when` source elsewhere in the
 schema, since that's a real, unchanging control name.
@@ -674,16 +668,6 @@ schema, since that's a real, unchanging control name.
 				"label": "Tag Notes"
 			}
 		}
-	],
-	"append": [
-		{
-			"test": "fraud",
-			"wizard": {
-				"type": "text",
-				"id": "complianceCaseNumber",
-				"name": "complianceCaseNumber",
-				"label": "Compliance Case Number"
-			}
 	],
 	"modals": [
 		{
@@ -1105,16 +1089,6 @@ which of the six you pick.
 				"label": "Internal Team"
 			}
 		}
-	],
-	"append": [
-		{
-			"test": "/@competitor\\.com$/i",
-			"wizard": {
-				"type": "textarea",
-				"id": "externalDomainJustification",
-				"name": "externalDomainJustification",
-				"label": "Reason for External Domain"
-			}
 	]
 }
 ```
