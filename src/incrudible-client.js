@@ -1,6 +1,36 @@
 import { DAYS } from "./values/days.js";
+import {
+	RULE_KEYS,
+	actionTypes,
+	actions,
+	createInitialState,
+	createStore,
+	reducer,
+} from "./state.js";
 
 export { DAYS };
+
+const THEME_STORAGE_KEY = "[incrudible:theme]";
+const store = createStore(reducer, createInitialState());
+const rules = {};
+
+const resolvePreferredTheme = () => {
+	const stored = localStorage.getItem(THEME_STORAGE_KEY);
+
+	return stored === "dark" ||
+		(stored === null &&
+			window.matchMedia("(prefers-color-scheme: dark)").matches)
+		? "dark"
+		: "light";
+};
+
+for (const name of RULE_KEYS) {
+	Object.defineProperty(rules, name, {
+		enumerable: true,
+		get: () => store.getState().rules[name],
+		set: value => store.dispatch(actions.setRule(name, value)),
+	});
+}
 
 // incrudible-client — shared client framework for InCRUDibly-based Apps
 // Script apps. `APP` is the only export; it's the house for everything
@@ -11,7 +41,7 @@ export { DAYS };
 // app's own Client.html, calling into APP.
 
 export const APP = {
-	THEME_STORAGE_KEY: "[incrudible:theme]",
+	THEME_STORAGE_KEY,
 	RECORDS_STORAGE_KEY: "[incrudible:records]",
 
 	get topnav() {
@@ -152,25 +182,16 @@ export const APP = {
 		return document.getElementById("workflow-article-frame");
 	},
 
-	// Active workflow's rule maps, plus feedback's own. Each app's own
-	// mountWorkflow/resetWorkflow, and each app's own feedback-init line,
-	// assign onto this directly (e.g. `APP.rules.modalRules = data.rules.modals;`) —
-	// object property mutation works fine across the module boundary,
-	// unlike reassigning a bare imported binding.
-	rules: {
-		modalRules: {},
-		articleRules: {},
-		alertRules: {},
-		footnoteRules: {},
-		wizardRules: {},
-		criteriaRules: {},
-		feedbackWizardRules: {},
-		feedbackCriteriaRules: {},
-		feedbackAlertRules: {},
-		feedbackModalRules: {},
-	},
+	// Existing consumers assign these properties directly. The stable facade
+	// keeps that API while routing every update through the rules reducer.
+	rules,
 
-	workflowLabel: "",
+	get workflowLabel() {
+		return store.getState().workflow.label;
+	},
+	set workflowLabel(value) {
+		store.dispatch(actions.setWorkflowLabel(value));
+	},
 
 	// The active workflow — a rich alert object for queue, a plain label
 	// string for static. Each app's own mountWorkflow/resetWorkflow read
@@ -178,10 +199,10 @@ export const APP = {
 	// that access always goes through APP rather than reaching into
 	// _internals directly.
 	get workflow() {
-		return APP._internals.workflow;
+		return store.getState().workflow.current;
 	},
 	set workflow(value) {
-		APP._internals.workflow = value;
+		store.dispatch(actions.setWorkflow(value));
 	},
 
 	imageToUpload: file => {
@@ -215,14 +236,22 @@ export const APP = {
 		onFormReset,
 		onRecordsTab,
 	} = {}) => {
-		APP.workflowLabel = workflowLabel;
+		store.dispatch(
+			actions.initialize(
+				workflowLabel,
+				feedback
+					? {
+							feedbackWizardRules: feedback.rules?.wizards || {},
+							feedbackCriteriaRules: feedback.rules?.criteria || {},
+							feedbackAlertRules: feedback.rules?.alerts || {},
+							feedbackModalRules: feedback.rules?.modals || {},
+						}
+					: {},
+			),
+		);
+		store.dispatch(actions.hydrateTheme(resolvePreferredTheme()));
 
 		if (feedback) {
-			APP.rules.feedbackWizardRules = feedback?.rules?.wizards || {};
-			APP.rules.feedbackCriteriaRules = feedback?.rules?.criteria || {};
-			APP.rules.feedbackAlertRules = feedback?.rules?.alerts || {};
-			APP.rules.feedbackModalRules = feedback?.rules?.modals || {};
-
 			APP.feedbackFormControls.replaceChildren(
 				APP.renderEntries(feedback.schema),
 			);
@@ -236,252 +265,11 @@ export const APP = {
 			APP.themeToggle.checked = APP.theme === "dark";
 		}
 
-		document.addEventListener("click", event => {
-			if (event.target.closest?.('a[href^="javascript:"]')) {
-				event.preventDefault();
-			}
-		});
-
-		APP.tabs.forEach((tab, index) => {
-			tab.addEventListener("click", () =>
-				APP.navigator.selectTab(tab.dataset.tabId),
-			);
-
-			tab.addEventListener("keydown", e => {
-				const last = APP.tabs.length - 1;
-				let next = null;
-
-				switch (e.key) {
-					case "ArrowRight": {
-						next = index === last ? 0 : index + 1;
-						break;
-					}
-					case "ArrowLeft": {
-						next = index === 0 ? last : index - 1;
-						break;
-					}
-					case "Home": {
-						next = 0;
-						break;
-					}
-					case "End": {
-						next = last;
-						break;
-					}
-					default:
-						return;
-				}
-
-				e.preventDefault();
-				APP.navigator.selectTab(APP.tabs[next].dataset.tabId);
-				APP.tabs[next].focus();
-			});
-		});
-
-		APP.dropdowns.forEach(dropdown => {
-			dropdown
-				.querySelector(".dropdown-button")
-				?.addEventListener("click", () => APP.toggleDropdown(dropdown));
-		});
-
-		APP.topnavToggle?.addEventListener("click", event => {
-			event.preventDefault();
-			APP.topnav?.classList.toggle("expanded");
-		});
-
-		APP.sideNavControllers.forEach(element =>
-			element?.addEventListener("click", event => {
-				event.preventDefault();
-				APP.sidenav?.classList.add("open");
-			}),
-		);
-
-		APP.sidenavClose?.addEventListener("click", event => {
-			event.preventDefault();
-			APP.sidenav?.classList.remove("open");
-		});
-
-		APP.openFeedbackDrawer?.addEventListener("click", event => {
-			event.preventDefault();
-			APP.feedbackDrawer?.classList.add("open");
-		});
-
-		APP.closeFeedbackDrawer?.addEventListener("click", event => {
-			event.preventDefault();
-			APP.feedbackDrawer?.classList.remove("open");
-			APP.feedbackForm?.reset();
-		});
-
-		APP.closeNotepad?.addEventListener("click", () =>
-			APP.notepad.classList.add("closed"),
-		);
-		APP.openNotepad?.addEventListener("click", () =>
-			APP.notepad.classList.remove("closed"),
-		);
-
-		// Draggable notepad — grab the header to move it (mouse + touch)
-		APP.notepadHandle?.addEventListener("pointerdown", event => {
-			if (event.button !== 0 || event.target === APP.closeNotepad) {
-				return;
-			}
-
-			const rect = APP.notepad.getBoundingClientRect();
-			const grabX = event.clientX - rect.left;
-			const grabY = event.clientY - rect.top;
-
-			// Hand off from the initial right-anchored spot to left/top
-			APP.notepad.style.right = "auto";
-			APP.notepad.style.bottom = "auto";
-
-			const onPointerMove = move => {
-				APP.notepad.style.left = move.clientX - grabX + "px";
-				APP.notepad.style.top = move.clientY - grabY + "px";
-			};
-
-			const onPointerUp = up => {
-				APP.notepadHandle.releasePointerCapture(up.pointerId);
-				APP.notepadHandle.removeEventListener("pointermove", onPointerMove);
-				APP.notepadHandle.removeEventListener("pointerup", onPointerUp);
-			};
-
-			APP.notepadHandle.setPointerCapture(event.pointerId);
-			APP.notepadHandle.addEventListener("pointermove", onPointerMove);
-			APP.notepadHandle.addEventListener("pointerup", onPointerUp);
-		});
-
-		[APP.messageModalDismiss, APP.messageModalClose].forEach(button =>
-			button?.addEventListener("click", () => APP.messageModal.close()),
-		);
-
-		APP.confirmModalConfirm?.addEventListener("click", () =>
-			APP.confirmModal.close("confirm"),
-		);
-		[APP.confirmModalCancel, APP.confirmModalClose].forEach(button =>
-			button?.addEventListener("click", () => APP.confirmModal.close("cancel")),
-		);
-
-		document.addEventListener("click", event => {
-			APP.dropdowns
-				.filter(dropdown => !dropdown.contains(event.target))
-				.forEach(dropdown => APP.toggleDropdown(dropdown, false));
-		});
-
-		document.addEventListener("keydown", event => {
-			if (event.key === "Escape") {
-				APP.dropdowns.forEach(dropdown => APP.toggleDropdown(dropdown, false));
-			}
-		});
-
-		APP.confirmModal?.addEventListener("close", () => {
-			APP.publish(
-				APP.confirmModal.returnValue === "confirm"
-					? "confirm:accepted"
-					: "confirm:cancelled",
-				APP._internals.confirmDetail,
-			);
-			APP._internals.confirmDetail = undefined;
-			APP.publish("modal:closed");
-		});
-
-		APP.messageModal?.addEventListener("close", () =>
-			APP.publish("modal:closed"),
-		);
-
-		// Delegated: copy buttons embedded in notify() message markup, e.g.
-		// the feedback:submitted subscriber's record-ID copy button below.
-		APP.messageModal?.addEventListener("click", async e => {
-			const button = e.target.closest(".copy-button");
-
-			if (!button) {
-				return;
-			}
-
-			try {
-				await navigator.clipboard.writeText(button.dataset.copy);
-				APP.toast("Copied to clipboard.", "tip");
-			} catch (_e) {
-				APP.toast("Couldn't copy to clipboard.", "caution");
-			}
-		});
-
-		APP.form?.addEventListener("reset", () =>
-			requestAnimationFrame(() => {
-				APP._internals.form.resetLists();
-				onFormReset?.();
-			}),
-		);
-
-		APP.feedbackForm?.addEventListener("input", event =>
-			APP._internals.form.syncWizards(event, APP.feedbackForm),
-		);
-
-		APP.feedbackForm?.addEventListener("change", event => {
-			APP._internals.form.syncWizards(event, APP.feedbackForm);
-			APP._internals.form.syncModals(event);
-			APP._internals.form.syncAlerts(APP.feedbackForm);
-		});
-
-		APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-
-		APP.feedbackForm?.addEventListener("reset", () =>
-			requestAnimationFrame(() => {
-				APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-				APP._internals.form.syncAlerts(APP.feedbackForm);
-			}),
-		);
-
-		APP.copyPreview?.addEventListener("click", async () => {
-			if (!APP.form.reportValidity()) {
-				return;
-			}
-
-			const { charCount, copyText } = APP.formHelpers;
-
-			if (!charCount) {
-				return;
-			}
-
-			try {
-				await navigator.clipboard.writeText(copyText);
-				APP.toast("Copied to clipboard.", "tip");
-			} catch (_e) {
-				APP.toast("Couldn't copy to clipboard.", "caution");
-			}
-		});
-
-		APP.themeToggle?.addEventListener("change", () => {
-			APP.theme = APP.themeToggle.checked ? "dark" : "light";
-		});
-
-		APP.subscribe("overlay:show", () => APP.overlay?.classList.add("active"));
-
-		APP.subscribe("overlay:hide", () =>
-			APP.overlay?.classList.remove("active"),
-		);
-
-		APP.subscribe("tab:change", ({ id }) => {
-			if (id === "panel-records") {
-				onRecordsTab?.();
-			}
-		});
-
-		APP.subscribe("record:created", () => {
-			APP.form?.reset();
-			APP.toast("Submission received.", "tip");
-		});
-
-		APP.subscribe("feedback:submitted", record => {
-			APP._internals.feedback.records?.unshift(record);
-			APP.feedbackForm?.reset();
-			APP.notify(
-				`Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
-				{ header: "Feedback submitted", variant: "tip" },
-			);
-		});
-
-		APP.subscribe("workflow:loaded", data => onWorkflowLoaded?.(data));
-
-		APP.subscribe("app:init", onInit => onAppInit?.(onInit));
+		setupNavigation();
+		setupSurfaces();
+		setupDialogs();
+		setupForms(onFormReset);
+		setupAppEvents({ onWorkflowLoaded, onAppInit, onRecordsTab });
 	},
 
 	// Bare <input> builder shared by renderFormControl's labeled-control path
@@ -551,7 +339,7 @@ export const APP = {
 				element.disabled = true;
 			}
 
-			if (entry.readonly) {
+			if (entry.readonly && "readOnly" in element) {
 				element.readOnly = true;
 			}
 
@@ -642,11 +430,7 @@ export const APP = {
 			case "select":
 			case "listbox": {
 				const select = document.createElement("select");
-				select.id = entry.id;
-
-				if (entry.name) {
-					select.name = entry.name;
-				}
+				applyShared(select);
 
 				if (entry.type === "listbox") {
 					select.multiple = true;
@@ -658,14 +442,6 @@ export const APP = {
 					if (entry.collapsed) {
 						select.className = "collapsed";
 					}
-				}
-
-				if (entry.disabled) {
-					select.disabled = true;
-				}
-
-				if (v.required) {
-					select.required = true;
 				}
 
 				// Customizable-select pattern: the button + selectedcontent pair
@@ -750,30 +526,7 @@ export const APP = {
 			label.hidden = true;
 		}
 
-		const toolbar = document.createElement("span");
-		toolbar.className = "label-toolbar";
-
-		const labelText = document.createElement("span");
-		labelText.className = "label-text";
-		labelText.innerHTML = entry.label;
-		toolbar.append(labelText);
-
-		if (entry.hint) {
-			const tooltip = document.createElement("span");
-			tooltip.className = "tooltip";
-
-			const tooltipIcon = document.createElement("i");
-			tooltipIcon.className = "tooltip-icon";
-			tooltipIcon.setAttribute("aria-hidden", "true");
-			tooltip.append(tooltipIcon);
-
-			const tooltipText = document.createElement("span");
-			tooltipText.className = "tooltip-text";
-			tooltipText.innerHTML = entry.hint;
-
-			tooltip.append(tooltipText);
-			toolbar.append(tooltip);
-		}
+		const toolbar = createLabelToolbar(entry);
 
 		if (entry.alerts?.length) {
 			label.append(APP.renderControlAlerts(entry));
@@ -861,30 +614,7 @@ export const APP = {
 			const label = document.createElement("label");
 			label.className = "form-control";
 
-			const toolbar = document.createElement("span");
-			toolbar.className = "label-toolbar";
-
-			const labelText = document.createElement("span");
-			labelText.className = "label-text";
-			labelText.innerHTML = entry.label;
-			toolbar.append(labelText);
-
-			if (entry.hint) {
-				const tooltip = document.createElement("span");
-				tooltip.className = "tooltip";
-
-				const tooltipIcon = document.createElement("i");
-				tooltipIcon.className = "tooltip-icon";
-				tooltipIcon.setAttribute("aria-hidden", "true");
-				tooltip.append(tooltipIcon);
-
-				const tooltipText = document.createElement("span");
-				tooltipText.className = "tooltip-text";
-				tooltipText.innerHTML = entry.hint;
-
-				tooltip.append(tooltipText);
-				toolbar.append(tooltip);
-			}
+			const toolbar = createLabelToolbar(entry);
 
 			const list = document.createElement("ul");
 
@@ -1081,7 +811,12 @@ export const APP = {
 	},
 
 	_internals: {
-		confirmDetail: undefined,
+		get confirmDetail() {
+			return store.getState().modal.confirmDetail;
+		},
+		set confirmDetail(value) {
+			store.dispatch(actions.setConfirmDetail(value));
+		},
 		get records() {
 			const stored = JSON.parse(
 				localStorage.getItem(APP.RECORDS_STORAGE_KEY) ?? "null",
@@ -1089,7 +824,12 @@ export const APP = {
 
 			return stored?.date === APP.today() ? stored.records : [];
 		},
-		workflow: undefined,
+		get workflow() {
+			return store.getState().workflow.current;
+		},
+		set workflow(value) {
+			store.dispatch(actions.setWorkflow(value));
+		},
 		bus: {
 			_handlers: new Map(),
 			clear(event) {
@@ -1166,7 +906,12 @@ export const APP = {
 			return true;
 		},
 		feedback: {
-			records: undefined,
+			get records() {
+				return store.getState().feedback.records;
+			},
+			set records(value) {
+				store.dispatch(actions.setFeedbackRecords(value));
+			},
 			syncRecords: () => {
 				if (!APP.feedbackForm) {
 					return;
@@ -1331,10 +1076,7 @@ export const APP = {
 							continue;
 						}
 
-						value =
-							["checkbox", "radio"].includes(control.type)
-								? this.resolveValueReferences(control.value, control)
-								: control.value;
+						value = this.resolveValueReferences(control.value, control);
 					} else if (control.tagName === "SELECT") {
 						if (control.multiple) {
 							value = Array.from(control.selectedOptions)
@@ -1563,42 +1305,6 @@ export const APP = {
 				}
 			},
 			syncWizards(e, targetForm = APP.form) {
-				const syncCriteria = () => {
-					const rules =
-						targetForm === APP.feedbackForm
-							? APP.rules.feedbackCriteriaRules
-							: APP.rules.criteriaRules;
-
-						Object.entries(rules).forEach(([id, criteria]) => {
-							const target = targetForm?.querySelector(
-								`#${id}`,
-							);
-							const node =
-								target instanceof HTMLFieldSetElement
-									? target
-									: target?.closest(".form-control");
-
-							if (!node) {
-								return;
-							}
-
-						const show = APP._internals.when(
-							criteria,
-							targetForm,
-						);
-
-						node.hidden = !show;
-
-						if (node instanceof HTMLFieldSetElement) {
-							node.disabled = !show;
-						} else {
-							node
-								.querySelectorAll("input, select, textarea")
-								.forEach(control => (control.disabled = !show));
-						}
-					});
-				};
-
 				const syncFieldset = fieldset => {
 					// A checkbox/radio controller renders as the fieldset's
 					// preceding sibling; every other control type still renders
@@ -1606,9 +1312,7 @@ export const APP = {
 					const external = ["checkbox", "radio"].includes(
 						fieldset.dataset.type,
 					);
-					const controller = external
-						? fieldset.previousElementSibling
-						: fieldset.querySelector(":scope > .form-control");
+					const controller = getWizardController(fieldset);
 					const control = document.getElementById(controller?.htmlFor ?? "");
 
 					if (!control?.name) {
@@ -1681,23 +1385,16 @@ export const APP = {
 							fieldset => !fieldset.parentElement?.closest("fieldset.wizard"),
 						)
 						.forEach(syncFieldset);
-					syncCriteria();
+					syncCriteria(targetForm);
 					return;
 				}
 
 				wizards
-					.filter(fieldset => {
-						const external = ["checkbox", "radio"].includes(
-							fieldset.dataset.type,
-						);
-						const controller = external
-							? fieldset.previousElementSibling
-							: fieldset.querySelector(":scope > .form-control");
-
-						return controller?.htmlFor === target.id;
-					})
+					.filter(
+						fieldset => getWizardController(fieldset)?.htmlFor === target.id,
+					)
 					.forEach(syncFieldset);
-				syncCriteria();
+				syncCriteria(targetForm);
 			},
 		},
 		getValue: (control, targetForm = APP.form) => {
@@ -1761,17 +1458,21 @@ export const APP = {
 			let src;
 
 			switch (resource.type) {
-				case "doc":
+				case "doc": {
 					src = `https://docs.google.com/document/d/${id}/preview`;
 					break;
-				case "form":
+				}
+				case "form": {
 					src = `https://docs.google.com/forms/d/e/${id}/viewform?embedded=true`;
 					break;
-				case "pdf":
+				}
+				case "pdf": {
 					src = `https://drive.google.com/file/d/${id}/preview`;
 					break;
-				default:
+				}
+				default: {
 					return false;
+				}
 			}
 
 			if (
@@ -1826,35 +1527,21 @@ export const APP = {
 	},
 	navigator: {
 		selectTab: id => {
-			APP.tabs.forEach(tab => {
-				const selected = tab.dataset.tabId === id;
-				tab.setAttribute("aria-selected", selected ? "true" : "false");
-				tab.tabIndex = selected ? 0 : -1;
-				document.getElementById(tab.dataset.tabId).hidden = !selected;
-			});
-
-			APP.publish("tab:change", { id });
+			store.dispatch(actions.setSelectedTab(id));
 		},
 	},
 	get loading() {
-		return this.overlay.classList.contains("active");
+		return store.getState().ui.loading;
 	},
 	set loading(loading) {
+		store.dispatch(actions.setLoading(loading));
 		this.publish(loading ? "overlay:show" : "overlay:hide");
 	},
 	get theme() {
-		const stored = localStorage.getItem(this.THEME_STORAGE_KEY);
-
-		return stored === "dark" ||
-			(stored === null &&
-				window.matchMedia("(prefers-color-scheme: dark)").matches)
-			? "dark"
-			: "light";
+		return store.getState().ui.theme ?? resolvePreferredTheme();
 	},
 	set theme(mode) {
-		const theme = mode === "dark" ? "dark" : "light";
-		document.documentElement.dataset.theme = theme;
-		localStorage.setItem(this.THEME_STORAGE_KEY, theme);
+		store.dispatch(actions.setTheme(mode));
 	},
 	alert: (key, content) => {
 		const root =
@@ -1961,3 +1648,322 @@ export const APP = {
 		APP._internals.bus.unsubscribe(event, callback);
 	},
 };
+
+function createLabelToolbar({ label, hint }) {
+	const toolbar = document.createElement("span");
+	toolbar.className = "label-toolbar";
+
+	const labelText = document.createElement("span");
+	labelText.className = "label-text";
+	labelText.innerHTML = label;
+	toolbar.append(labelText);
+
+	if (hint) {
+		const tooltip = document.createElement("span");
+		tooltip.className = "tooltip";
+
+		const tooltipIcon = document.createElement("i");
+		tooltipIcon.className = "tooltip-icon";
+		tooltipIcon.setAttribute("aria-hidden", "true");
+		tooltip.append(tooltipIcon);
+
+		const tooltipText = document.createElement("span");
+		tooltipText.className = "tooltip-text";
+		tooltipText.innerHTML = hint;
+
+		tooltip.append(tooltipText);
+		toolbar.append(tooltip);
+	}
+
+	return toolbar;
+}
+
+function getWizardController(fieldset) {
+	return ["checkbox", "radio"].includes(fieldset.dataset.type)
+		? fieldset.previousElementSibling
+		: fieldset.querySelector(":scope > .form-control");
+}
+
+function syncCriteria(targetForm) {
+	const rules =
+		targetForm === APP.feedbackForm
+			? APP.rules.feedbackCriteriaRules
+			: APP.rules.criteriaRules;
+
+	Object.entries(rules).forEach(([id, criteria]) => {
+		const target = targetForm?.querySelector(`#${id}`);
+		const node =
+			target instanceof HTMLFieldSetElement
+				? target
+				: target?.closest(".form-control");
+
+		if (!node) {
+			return;
+		}
+
+		const show = APP._internals.when(criteria, targetForm);
+
+		node.hidden = !show;
+
+		if (node instanceof HTMLFieldSetElement) {
+			node.disabled = !show;
+		} else {
+			node
+				.querySelectorAll("input, select, textarea")
+				.forEach(control => (control.disabled = !show));
+		}
+	});
+}
+
+function setupNavigation() {
+	document.addEventListener("click", event => {
+		if (event.target.closest?.('a[href^="javascript:"]')) {
+			event.preventDefault();
+		}
+	});
+
+	APP.tabs.forEach((tab, index) => {
+		tab.addEventListener("click", () =>
+			APP.navigator.selectTab(tab.dataset.tabId),
+		);
+		tab.addEventListener("keydown", event => {
+			const last = APP.tabs.length - 1;
+			let next;
+
+			switch (event.key) {
+				case "ArrowRight": {
+					next = index === last ? 0 : index + 1;
+					break;
+				}
+				case "ArrowLeft": {
+					next = index === 0 ? last : index - 1;
+					break;
+				}
+				case "Home": {
+					next = 0;
+					break;
+				}
+				case "End": {
+					next = last;
+					break;
+				}
+				default: {
+					return;
+				}
+			}
+
+			event.preventDefault();
+			APP.navigator.selectTab(APP.tabs[next].dataset.tabId);
+			APP.tabs[next].focus();
+		});
+	});
+
+	APP.dropdowns.forEach(dropdown => {
+		dropdown
+			.querySelector(".dropdown-button")
+			?.addEventListener("click", () => APP.toggleDropdown(dropdown));
+	});
+
+	APP.topnavToggle?.addEventListener("click", event => {
+		event.preventDefault();
+		APP.topnav?.classList.toggle("expanded");
+	});
+
+	APP.sideNavControllers.forEach(element =>
+		element?.addEventListener("click", event => {
+			event.preventDefault();
+			APP.sidenav?.classList.add("open");
+		}),
+	);
+
+	APP.sidenavClose?.addEventListener("click", event => {
+		event.preventDefault();
+		APP.sidenav?.classList.remove("open");
+	});
+
+	document.addEventListener("click", event => {
+		APP.dropdowns
+			.filter(dropdown => !dropdown.contains(event.target))
+			.forEach(dropdown => APP.toggleDropdown(dropdown, false));
+	});
+
+	document.addEventListener("keydown", event => {
+		if (event.key === "Escape") {
+			APP.dropdowns.forEach(dropdown => APP.toggleDropdown(dropdown, false));
+		}
+	});
+}
+
+function setupSurfaces() {
+	APP.openFeedbackDrawer?.addEventListener("click", event => {
+		event.preventDefault();
+		APP.feedbackDrawer?.classList.add("open");
+	});
+	APP.closeFeedbackDrawer?.addEventListener("click", event => {
+		event.preventDefault();
+		APP.feedbackDrawer?.classList.remove("open");
+		APP.feedbackForm?.reset();
+	});
+	APP.closeNotepad?.addEventListener("click", () =>
+		APP.notepad.classList.add("closed"),
+	);
+	APP.openNotepad?.addEventListener("click", () =>
+		APP.notepad.classList.remove("closed"),
+	);
+
+	APP.notepadHandle?.addEventListener("pointerdown", event => {
+		if (event.button !== 0 || event.target === APP.closeNotepad) {
+			return;
+		}
+
+		const rect = APP.notepad.getBoundingClientRect();
+		const grabX = event.clientX - rect.left;
+		const grabY = event.clientY - rect.top;
+		APP.notepad.style.right = "auto";
+		APP.notepad.style.bottom = "auto";
+
+		const onPointerMove = move => {
+			APP.notepad.style.left = move.clientX - grabX + "px";
+			APP.notepad.style.top = move.clientY - grabY + "px";
+		};
+		const onPointerUp = up => {
+			APP.notepadHandle.releasePointerCapture(up.pointerId);
+			APP.notepadHandle.removeEventListener("pointermove", onPointerMove);
+			APP.notepadHandle.removeEventListener("pointerup", onPointerUp);
+		};
+
+		APP.notepadHandle.setPointerCapture(event.pointerId);
+		APP.notepadHandle.addEventListener("pointermove", onPointerMove);
+		APP.notepadHandle.addEventListener("pointerup", onPointerUp);
+	});
+}
+
+function setupDialogs() {
+	[APP.messageModalDismiss, APP.messageModalClose].forEach(button =>
+		button?.addEventListener("click", () => APP.messageModal.close()),
+	);
+	APP.confirmModalConfirm?.addEventListener("click", () =>
+		APP.confirmModal.close("confirm"),
+	);
+	[APP.confirmModalCancel, APP.confirmModalClose].forEach(button =>
+		button?.addEventListener("click", () => APP.confirmModal.close("cancel")),
+	);
+
+	APP.confirmModal?.addEventListener("close", () => {
+		APP.publish(
+			APP.confirmModal.returnValue === "confirm"
+				? "confirm:accepted"
+				: "confirm:cancelled",
+			APP._internals.confirmDetail,
+		);
+		store.dispatch(actions.setConfirmDetail(undefined));
+		APP.publish("modal:closed");
+	});
+	APP.messageModal?.addEventListener("close", () => APP.publish("modal:closed"));
+	APP.messageModal?.addEventListener("click", async event => {
+		const button = event.target.closest(".copy-button");
+
+		if (!button) {
+			return;
+		}
+
+		await copyToClipboard(button.dataset.copy);
+	});
+}
+
+function setupForms(onFormReset) {
+	APP.form?.addEventListener("reset", () =>
+		requestAnimationFrame(() => {
+			APP._internals.form.resetLists();
+			onFormReset?.();
+		}),
+	);
+	APP.feedbackForm?.addEventListener("input", event =>
+		APP._internals.form.syncWizards(event, APP.feedbackForm),
+	);
+	APP.feedbackForm?.addEventListener("change", event => {
+		APP._internals.form.syncWizards(event, APP.feedbackForm);
+		APP._internals.form.syncModals(event);
+		APP._internals.form.syncAlerts(APP.feedbackForm);
+	});
+	APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+	APP.feedbackForm?.addEventListener("reset", () =>
+		requestAnimationFrame(() => {
+			APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+			APP._internals.form.syncAlerts(APP.feedbackForm);
+		}),
+	);
+	APP.copyPreview?.addEventListener("click", async () => {
+		if (!APP.form.reportValidity()) {
+			return;
+		}
+
+		const { charCount, copyText } = APP.formHelpers;
+
+		if (charCount) {
+			await copyToClipboard(copyText);
+		}
+	});
+	APP.themeToggle?.addEventListener("change", () => {
+		APP.theme = APP.themeToggle.checked ? "dark" : "light";
+	});
+}
+
+function setupAppEvents({ onWorkflowLoaded, onAppInit, onRecordsTab }) {
+	APP.subscribe("overlay:show", () => store.dispatch(actions.setLoading(true)));
+	APP.subscribe("overlay:hide", () => store.dispatch(actions.setLoading(false)));
+	APP.subscribe("tab:change", ({ id }) => {
+		if (id === "panel-records") {
+			onRecordsTab?.();
+		}
+	});
+	APP.subscribe("record:created", () => {
+		APP.form?.reset();
+		APP.toast("Submission received.", "tip");
+	});
+	APP.subscribe("feedback:submitted", record => {
+		store.dispatch(actions.prependFeedbackRecord(record));
+		APP.feedbackForm?.reset();
+		APP.notify(
+			`Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
+			{ header: "Feedback submitted", variant: "tip" },
+		);
+	});
+	APP.subscribe("workflow:loaded", data => onWorkflowLoaded?.(data));
+	APP.subscribe("app:init", onInit => onAppInit?.(onInit));
+}
+
+async function copyToClipboard(text) {
+	try {
+		await navigator.clipboard.writeText(text);
+		APP.toast("Copied to clipboard.", "tip");
+	} catch (_error) {
+		APP.toast("Couldn't copy to clipboard.", "caution");
+	}
+}
+
+store.subscribe((state, _previousState, action) => {
+	if (action.type === actionTypes.setLoading) {
+		APP.overlay?.classList.toggle("active", state.ui.loading);
+	}
+
+	if (action.type === actionTypes.setTheme) {
+		document.documentElement.dataset.theme = state.ui.theme;
+		localStorage.setItem(APP.THEME_STORAGE_KEY, state.ui.theme);
+
+		if (APP.themeToggle) {
+			APP.themeToggle.checked = state.ui.theme === "dark";
+		}
+	}
+
+	if (action.type === actionTypes.setSelectedTab) {
+		APP.tabs.forEach(tab => {
+			const selected = tab.dataset.tabId === state.ui.selectedTab;
+			tab.setAttribute("aria-selected", selected ? "true" : "false");
+			tab.tabIndex = selected ? 0 : -1;
+			document.getElementById(tab.dataset.tabId).hidden = !selected;
+		});
+
+		APP.publish("tab:change", { id: state.ui.selectedTab });
+	}
+});

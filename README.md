@@ -24,6 +24,18 @@ const elapsed = DAYS.daysElapsed("2026-07-17", "2026-07-20", {
 // 1
 ```
 
+## Architecture
+
+`APP` remains the public compatibility facade. Its workflow, rule, UI,
+feedback, and modal state is owned by pure reducers in `src/state.js`; existing
+assignments such as `APP.workflow = value` and `APP.rules.modalRules = rules`
+dispatch actions behind that facade.
+
+Store subscriptions apply state to browser effects such as the loading overlay,
+theme persistence, and selected tabs. Form values, rule evaluation, rendering,
+clipboard and server calls, and transient interactions such as drawers and
+dragging stay outside the store so DOM state is not duplicated.
+
 ## Docs
 
 - [Form Control Reference](docs/form-controls.md) - every control type this
