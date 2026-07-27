@@ -1339,6 +1339,12 @@ export const APP = {
                 .forEach((control) => (control.disabled = !show));
             }
           });
+
+          if (external) {
+            const anyShown = targets.some((wizard) => !wizard.hidden);
+            fieldset.hidden = !anyShown;
+            fieldset.disabled = !anyShown;
+          }
         };
 
         const wizards = Array.from(
