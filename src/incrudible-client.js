@@ -704,7 +704,15 @@ export const APP = {
       return fieldset;
     }
 
-    if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
+    const externalWizard =
+      ["checkbox", "radio"].includes(entry.type) && rule;
+
+    if (
+      !(
+        (entry.wizards && entry.wizards.length && entry.type !== "textarea") ||
+        externalWizard
+      )
+    ) {
       return APP.renderFormControl(entry, rule);
     }
 
@@ -715,7 +723,7 @@ export const APP = {
       fieldset.hidden = true;
     }
 
-    const children = entry.wizards.map((r) =>
+    const children = (entry.wizards || []).map((r) =>
       // checkbox/radio wizard items may be bare (shown while checked) or
       // wrapped as {wizard, test} with an explicit boolean test
       APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
@@ -734,7 +742,7 @@ export const APP = {
       fieldset.hidden = true;
       fieldset.append(...children);
 
-      const controller = APP.renderFormControl(entry, rule);
+      const controller = APP.renderFormControl(entry);
       const group = document.createDocumentFragment();
       group.append(controller, fieldset);
 
@@ -1328,7 +1336,18 @@ export const APP = {
             ),
           );
 
-          const targets = external ? wizards : wizards.slice(1);
+          const targets = (external ? wizards : wizards.slice(1)).filter(
+            (wizard) =>
+              !(
+                wizard.matches(".form-control") &&
+                wizard.querySelector(
+                  'input:is([type="checkbox"], [type="radio"])',
+                ) &&
+                wizard.nextElementSibling?.matches(
+                  'fieldset.wizard[data-type="checkbox"], fieldset.wizard[data-type="radio"]',
+                )
+              ),
+          );
 
           targets.forEach((wizard, i) => {
             const rule = activeRules[i];
@@ -1342,7 +1361,7 @@ export const APP = {
             if (wizard instanceof HTMLFieldSetElement) {
               wizard.disabled = !show;
 
-              if (show) {
+              if (show && wizard.childElementCount) {
                 syncFieldset(wizard);
               }
             } else {
