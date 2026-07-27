@@ -1323,15 +1323,6 @@ export const APP = {
             return;
           }
 
-          if (controller?.hidden) {
-            fieldset.hidden = true;
-            fieldset.disabled = true;
-            return;
-          }
-
-          fieldset.hidden = false;
-          fieldset.disabled = false;
-
           const values = APP._internals.getValue(control, targetForm);
           const activeRules =
             (targetForm === APP.feedbackForm
@@ -1394,20 +1385,6 @@ export const APP = {
           )
           .forEach(syncFieldset);
         syncCriteria(targetForm);
-
-        wizards.reverse().forEach((fieldset) => {
-          const controller = getWizardController(fieldset);
-          const targets = Array.from(
-            fieldset.querySelectorAll(
-              ":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
-            ),
-          );
-          const show =
-            targets.some((target) => !target.hidden) && !controller?.hidden;
-
-          fieldset.hidden = !show;
-          fieldset.disabled = !show;
-        });
       },
     },
     getValue: (control, targetForm = APP.form) => {
@@ -1730,6 +1707,18 @@ function syncCriteria(targetForm) {
       node
         .querySelectorAll("input, select, textarea")
         .forEach((control) => (control.disabled = !show));
+
+      const wizard =
+        node.parentElement?.matches("fieldset.wizard")
+          ? node.parentElement
+          : node.nextElementSibling?.matches("fieldset.wizard")
+            ? node.nextElementSibling
+            : null;
+
+      if (wizard && getWizardController(wizard) === node) {
+        wizard.hidden = !show;
+        wizard.disabled = !show;
+      }
     }
   });
 }
