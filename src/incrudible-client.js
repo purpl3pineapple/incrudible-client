@@ -1394,25 +1394,20 @@ export const APP = {
           .forEach(syncFieldset);
         syncCriteria(targetForm);
 
-        wizards
-          .reverse()
-          .forEach((fieldset) => {
-            const external = ["checkbox", "radio"].includes(
-              fieldset.dataset.type,
-            );
-            const controller = getWizardController(fieldset);
-            const targets = Array.from(
-              fieldset.querySelectorAll(
-                ":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
-              ),
-            );
-            const show =
-              targets.some((target) => !target.hidden) &&
-              (!external || !controller?.hidden);
+        wizards.reverse().forEach((fieldset) => {
+          const controller = getWizardController(fieldset);
+          const targets = Array.from(
+            fieldset.querySelectorAll(
+              ":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
+            ),
+          );
+          const show =
+            targets.some((target) => !target.hidden) &&
+            !controller?.hidden;
 
-            fieldset.hidden = !show;
-            fieldset.disabled = !show;
-          });
+          fieldset.hidden = !show;
+          fieldset.disabled = !show;
+        });
       },
     },
     getValue: (control, targetForm = APP.form) => {
@@ -1708,14 +1703,15 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([name, criteria]) => {
+  Object.entries(rules).forEach(([key, criteria]) => {
+    const elements = Array.from(targetForm?.elements ?? []);
     const target =
-      Array.from(targetForm?.elements ?? []).find(
-        (control) => control.name === name,
+      elements.find((control) => control.id === key) ??
+      elements.find((control) => control.name === key) ??
+      Array.from(targetForm?.querySelectorAll("[id], [data-name]") ?? []).find(
+        (element) => element.id === key || element.dataset.name === key,
       ) ??
-      Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-        (element) => element.dataset.name === name,
-      );
+      null;
     const node =
       target instanceof HTMLFieldSetElement
         ? target
