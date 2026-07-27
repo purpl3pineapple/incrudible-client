@@ -152,7 +152,7 @@ export const APP = {
     return document.getElementById("copy-preview");
   },
   get activeFlowLink() {
-    return this.sidenav?.querySelector("a[data-flow-id].active");
+    return this.sidenav?.querySelector("a[data-path].active");
   },
   get toastContainer() {
     return document.getElementById("toast-container");
@@ -730,7 +730,8 @@ export const APP = {
     // reveal (see the dataset.type check in syncWizards below), without
     // also hiding the controller itself.
     if (["checkbox", "radio"].includes(entry.type)) {
-      fieldset.className = `wizard w-${entry.width || 1}`;
+      fieldset.className = "wizard w-1";
+      fieldset.hidden = true;
       fieldset.append(...children);
 
       const controller = APP.renderFormControl(entry, rule);
@@ -949,24 +950,18 @@ export const APP = {
         const workflowDropdown = activeFlowLink?.closest(".nav-dropdown");
         const departmentDropdown =
           workflowDropdown?.parentElement?.closest(".nav-dropdown");
-        const category = activeFlowLink?.textContent?.trim() || "";
-        const workflow = workflowDropdown
-          ?.querySelector(":scope > .dropdown-button")
-          ?.textContent?.trim();
-        const department =
-          departmentDropdown
+        const label = (element) =>
+          element
             ?.querySelector(":scope > .dropdown-button")
-            ?.textContent?.trim() ||
-          workflow ||
-          category;
-        const prefix =
-          APP.workflow && typeof APP.workflow === "object"
-            ? [department, APP.workflowLabel]
-            : departmentDropdown
-              ? [`${department} (${workflow})`, `Category: ${category}`]
-              : workflowDropdown
-                ? [`${workflow} (${APP.workflowLabel})`]
-                : [APP.workflowLabel];
+            ?.textContent?.trim();
+        const category = activeFlowLink?.textContent?.trim();
+        const workflow = label(workflowDropdown);
+        const department = label(departmentDropdown);
+        const prefix = departmentDropdown
+          ? [department, workflow, category && `Category: ${category}`]
+          : workflowDropdown
+            ? [label(workflowDropdown), category]
+            : [APP.workflowLabel];
 
         return rowText ? [...prefix, rowText].filter(Boolean).join(" | ") : "";
       },

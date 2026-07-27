@@ -241,6 +241,98 @@ test("runs a rendered workflow with rules, validation, and preview", async ({ pa
 	expectCleanPage(errors);
 });
 
+test("renders checkbox wizard shells as hidden full-row containers", async ({ page }) => {
+	const errors = await openFixture(page);
+
+	await page.evaluate(() => {
+		const schema = [
+			{
+				type: "checkbox",
+				id: "include-details",
+				name: "includeDetails",
+				label: "Include details",
+				width: 2,
+				wizards: [
+					{
+						test: true,
+						wizard: {
+							type: "text",
+							id: "details",
+							name: "details",
+							label: "Details",
+						},
+					},
+				],
+			},
+		];
+
+		APP.rules.wizardRules = { includeDetails: schema[0].wizards };
+		APP.rules.criteriaRules = {};
+		APP.formControls.replaceChildren(APP.renderEntries(schema));
+	});
+
+	const shell = page.locator("fieldset.wizard");
+	await expect(shell).toHaveClass(/w-1/);
+	await expect(shell).toHaveAttribute("hidden", "");
+	await page.evaluate(() => APP.formHelpers.syncWizards());
+	await expect(page.locator("#details")).toBeDisabled();
+
+	await page.locator("#include-details").check();
+	await page.evaluate(() => APP.formHelpers.syncWizards());
+	await expect(shell).not.toHaveAttribute("hidden", "");
+	await expect(page.locator("#details")).toBeEnabled();
+
+	await page.locator("#include-details").uncheck();
+	await page.evaluate(() => APP.formHelpers.syncWizards());
+	await expect(shell).toHaveAttribute("hidden", "");
+	await expect(page.locator("#details")).toBeDisabled();
+	expectCleanPage(errors);
+});
+
+test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
+	const errors = await openFixture(page);
+
+	const prefixes = await page.evaluate(() => {
+		APP.formControls.replaceChildren(
+			APP.renderEntries([
+				{
+					type: "text",
+					id: "case-number",
+					name: "caseNumber",
+					label: "Case Number",
+				},
+			]),
+		);
+		document.querySelector("#case-number").value = "12345";
+
+		APP.sidenav.innerHTML = `
+			<div class="nav-dropdown">
+				<button type="button" class="dropdown-button">Operations</button>
+				<a class="active" data-path="operations/review">Review</a>
+			</div>`;
+		const direct = APP.formHelpers.copyText;
+
+		APP.sidenav.innerHTML = `
+			<div class="nav-dropdown">
+				<button type="button" class="dropdown-button">Operations</button>
+				<div class="nav-dropdown">
+					<button type="button" class="dropdown-button">Review</button>
+					<a class="active" data-path="operations/review/escalation">Escalation</a>
+				</div>
+			</div>`;
+		const categorized = APP.formHelpers.copyText;
+
+		return { direct, categorized };
+	});
+
+	expect(prefixes).toEqual({
+		direct: "Operations | Review | Case Number: 12345",
+		categorized:
+			"Operations | Review | Category: Escalation | Case Number: 12345",
+	});
+	expectCleanPage(errors);
+});
+
 test("keeps dynamic lists correctly indexed and resets extra rows", async ({ page }) => {
 	const errors = await openFixture(page);
 
