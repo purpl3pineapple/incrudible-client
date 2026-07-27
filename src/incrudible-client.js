@@ -1347,8 +1347,9 @@ export const APP = {
           const targets = external ? wizards : wizards.slice(1);
 
           targets.forEach((wizard, i) => {
-            const rule = activeRules[i] || {};
+            const rule = activeRules[i];
             const show =
+              rule &&
               APP._internals.match(rule.test, values) &&
               APP._internals.when(rule.when, targetForm);
 
