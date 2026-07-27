@@ -1381,7 +1381,11 @@ export const APP = {
           // (checkbox/radio) case - the controller is this fieldset's
           // own first child otherwise, and hiding the fieldset would
           // hide the controller too.
-          const anyShown = targets.some((wizard) => !wizard.hidden);
+          const anyShown = activeRules.some(
+            (rule) =>
+              APP._internals.match(rule.test, values) &&
+              APP._internals.when(rule.when, targetForm),
+          );
           fieldset.hidden = !anyShown;
           fieldset.disabled = !anyShown;
         };

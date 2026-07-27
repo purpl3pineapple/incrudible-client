@@ -261,9 +261,7 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
   expectCleanPage(errors);
 });
 
-test("toggles checkbox wizard containers on change", async ({
-  page,
-}) => {
+test("toggles checkbox wizard containers on change", async ({ page }) => {
   const errors = await openFixture(page);
 
   await page.evaluate(() => {
@@ -278,17 +276,31 @@ test("toggles checkbox wizard containers on change", async ({
           {
             test: true,
             wizard: {
-              type: "text",
-              id: "details",
-              name: "details",
-              label: "Details",
+              type: "checkbox",
+              id: "include-detail-notes",
+              name: "includeDetailNotes",
+              label: "Include detail notes",
+              wizards: [
+                {
+                  test: true,
+                  wizard: {
+                    type: "text",
+                    id: "details",
+                    name: "details",
+                    label: "Details",
+                  },
+                },
+              ],
             },
           },
         ],
       },
     ];
 
-    APP.rules.wizardRules = { includeDetails: schema[0].wizards };
+    APP.rules.wizardRules = {
+      includeDetails: schema[0].wizards,
+      includeDetailNotes: schema[0].wizards[0].wizard.wizards,
+    };
     APP.rules.criteriaRules = {};
     APP.formControls.replaceChildren(APP.renderEntries(schema));
   });
@@ -301,11 +313,11 @@ test("toggles checkbox wizard containers on change", async ({
 
   await page.locator("#include-details").check();
   await expect(container).not.toHaveAttribute("hidden", "");
-  await expect(page.locator("#details")).toBeEnabled();
+  await expect(page.locator("#include-detail-notes")).toBeVisible();
 
   await page.locator("#include-details").uncheck();
   await expect(container).toHaveAttribute("hidden", "");
-  await expect(page.locator("#details")).toBeDisabled();
+  await expect(page.locator("#include-detail-notes")).not.toBeVisible();
   expectCleanPage(errors);
 });
 
