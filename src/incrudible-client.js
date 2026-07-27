@@ -888,9 +888,12 @@ export const APP = {
     },
     when: (dependencies = new Map(), targetForm = APP.form) => {
       const data = new FormData(targetForm);
+      const controlNames = new Set(
+        Array.from(targetForm?.elements ?? [], ({ name }) => name).filter(Boolean),
+      );
 
       for (const [nameMatcher, test] of dependencies) {
-        const names = [...new Set(data.keys())].filter((name) =>
+        const names = [...controlNames].filter((name) =>
           APP._internals.match(nameMatcher, [name]),
         );
 
@@ -1382,12 +1385,12 @@ export const APP = {
           targetForm?.querySelectorAll("fieldset.wizard") ?? [],
         );
 
-        syncCriteria(targetForm);
         wizards
           .filter(
             (fieldset) => !fieldset.parentElement?.closest("fieldset.wizard"),
           )
           .forEach(syncFieldset);
+        syncCriteria(targetForm);
       },
     },
     getValue: (control, targetForm = APP.form) => {
