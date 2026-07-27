@@ -645,10 +645,8 @@ export const APP = {
           removeButton.setAttribute("aria-label", "Remove");
           removeButton.textContent = "×";
           removeButton.addEventListener("click", () => {
-            entryLi.dispatchEvent(
-              new CustomEvent("item-removed", { bubbles: true }),
-            );
             entryLi.remove();
+            fieldset.dispatchEvent(new CustomEvent("item-removed"));
           });
           entryLi.append(removeButton);
         }
@@ -1708,12 +1706,11 @@ function syncCriteria(targetForm) {
         .querySelectorAll("input, select, textarea")
         .forEach((control) => (control.disabled = !show));
 
-      const wizard =
-        node.parentElement?.matches("fieldset.wizard")
-          ? node.parentElement
-          : node.nextElementSibling?.matches("fieldset.wizard")
-            ? node.nextElementSibling
-            : null;
+      const wizard = node.parentElement?.matches("fieldset.wizard")
+        ? node.parentElement
+        : node.nextElementSibling?.matches("fieldset.wizard")
+          ? node.nextElementSibling
+          : null;
 
       if (wizard && getWizardController(wizard) === node) {
         wizard.hidden = !show;

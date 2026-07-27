@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Incrudible Client Test Consumer</title>
+	<script type="importmap">
+		{
+			"imports": {
+				"marked": "/node_modules/marked/lib/marked.esm.js"
+			}
+		}
+	</script>
+</head>
+<body>
+	<nav id="topnav">
+		<button type="button" id="topnav-collapse-toggle">Toggle navigation</button>
+		<label><input type="checkbox" id="theme-toggle"> Dark theme</label>
+	</nav>
+	<button type="button" id="open-sidenav">Open menu</button>
+	<nav id="sidenav">
+		<button type="button" id="close-sidenav">Close menu</button>
+		<div class="nav-dropdown">
+			<button type="button" class="dropdown-button" aria-expanded="false">Operations</button>
+			<a href="javascript:void(0)" data-flow-id="review">Review</a>
+		</div>
+	</nav>
+
+	<div role="tablist" aria-label="Views">
+		<button type="button" role="tab" data-tab-id="panel-form" aria-selected="true">New Submission</button>
+		<button type="button" role="tab" data-tab-id="panel-records" aria-selected="false" tabindex="-1">My Submissions</button>
+	</div>
+	<section id="panel-form" role="tabpanel">
+		<form id="app-form">
+			<div id="form-alerts"></div>
+			<div id="form-controls"></div>
+			<button type="reset">Reset</button>
+		</form>
+		<article id="workflow-article" hidden>
+			<h2 id="workflow-article-header"></h2>
+			<iframe id="workflow-article-frame" title="Workflow"></iframe>
+		</article>
+		<details id="form-preview" open>
+			<dl id="preview-list"></dl>
+			<button type="button" id="copy-preview" disabled>Copy as Text</button>
+		</details>
+	</section>
+	<section id="panel-records" role="tabpanel" hidden>
+		<div id="records-list"></div>
+	</section>
+
+	<div id="app-alerts"></div>
+	<button type="button" id="open-feedback-drawer">Send feedback</button>
+	<aside id="feedback-drawer">
+		<button type="button" id="close-feedback-drawer">Close feedback</button>
+		<form id="feedback-form">
+			<div id="feedback-alerts"></div>
+			<div id="feedback-form-controls"></div>
+		</form>
+	</aside>
+	<button type="button" id="open-notepad">Open notepad</button>
+	<aside id="notepad" class="closed">
+		<header id="notepad-handle">Notepad <button type="button" id="close-notepad">Close</button></header>
+	</aside>
+
+	<dialog id="confirm-modal">
+		<button type="button" id="confirm-modal-close">Close</button>
+		<h1 id="confirm-modal-header"></h1>
+		<div id="confirm-modal-message"></div>
+		<button type="button" id="confirm-modal-cancel-button">Cancel</button>
+		<button type="button" id="confirm-modal-confirm-button">OK</button>
+	</dialog>
+	<dialog id="message-modal">
+		<button type="button" id="message-modal-close">Close</button>
+		<h1 id="message-modal-header"></h1>
+		<div id="message-modal-message"></div>
+		<button type="button" id="message-modal-dismiss-button">OK</button>
+	</dialog>
+
+	<div id="toast-container"></div>
+	<div id="app-overlay" aria-hidden="true"></div>
+
+	<script type="module">
+		import { marked } from "marked";
+		import { APP, DAYS } from "/dist/incrudible-client.min.js";
+
+		window.marked = marked;
+		window.APP = APP;
+		window.DAYS = DAYS;
+		APP.init();
+		document.documentElement.dataset.ready = "true";
+	</script>
+</body>
+</html>

@@ -1,3 +1,5 @@
 node_modules/
 .markdownlint.json
 .github
+playwright-report/
+test-results/

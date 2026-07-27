@@ -4,9 +4,14 @@
 	"description": "Shared client-side JS framework for InCRUDibly-based Apps Script apps, served via jsDelivr's GitHub CDN mode.",
 	"license": "MIT",
 	"scripts": {
-		"build": "esbuild src/incrudible-client.js --bundle --minify --format=esm --outfile=dist/incrudible-client.min.js"
+		"build": "esbuild src/incrudible-client.js --bundle --minify --format=esm --outfile=dist/incrudible-client.min.js",
+		"test": "npm run build && playwright test",
+		"test:headed": "npm run build && playwright test --headed"
 	},
 	"devDependencies": {
-		"esbuild": "^0.28.1"
+		"@playwright/test": "^1.55.0",
+		"esbuild": "^0.28.1",
+		"http-server": "^14.1.1",
+		"marked": "16.3.0"
 	}
 }

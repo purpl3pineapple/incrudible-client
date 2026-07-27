@@ -36,6 +36,19 @@ theme persistence, and selected tabs. Form values, rule evaluation, rendering,
 clipboard and server calls, and transient interactions such as drawers and
 dragging stay outside the store so DOM state is not duplicated.
 
+## Testing
+
+Install dependencies and the browser engines once:
+
+```sh
+npm install
+npx playwright install chromium firefox webkit
+```
+
+`npm test` rebuilds the production bundle, then tests that artifact in Chromium,
+Firefox, and WebKit. Use `npm run test:headed -- --project=chromium` to inspect
+the browser interactions locally.
+
 ## Docs
 
 - [Form Control Reference](docs/form-controls.md) - every control type this
