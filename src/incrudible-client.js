@@ -1402,8 +1402,7 @@ export const APP = {
             ),
           );
           const show =
-            targets.some((target) => !target.hidden) &&
-            !controller?.hidden;
+            targets.some((target) => !target.hidden) && !controller?.hidden;
 
           fieldset.hidden = !show;
           fieldset.disabled = !show;
@@ -1703,15 +1702,14 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([key, criteria]) => {
-    const elements = Array.from(targetForm?.elements ?? []);
+  Object.entries(rules).forEach(([name, criteria]) => {
     const target =
-      elements.find((control) => control.id === key) ??
-      elements.find((control) => control.name === key) ??
-      Array.from(targetForm?.querySelectorAll("[id], [data-name]") ?? []).find(
-        (element) => element.id === key || element.dataset.name === key,
+      Array.from(targetForm?.elements ?? []).find(
+        (control) => control.name === name,
       ) ??
-      null;
+      Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
+        (element) => element.dataset.name === name,
+      );
     const node =
       target instanceof HTMLFieldSetElement
         ? target
