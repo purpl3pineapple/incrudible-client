@@ -704,8 +704,7 @@ export const APP = {
       return fieldset;
     }
 
-    const externalWizard =
-      ["checkbox", "radio"].includes(entry.type) && rule;
+    const externalWizard = ["checkbox", "radio"].includes(entry.type) && rule;
 
     if (
       !(
@@ -1893,6 +1892,9 @@ function setupDialogs() {
 }
 
 function setupForms(onFormReset) {
+  APP.form?.addEventListener("change", (event) =>
+    APP._internals.form.syncWizards(event),
+  );
   APP.form?.addEventListener("reset", () =>
     requestAnimationFrame(() => {
       APP._internals.form.resetLists();

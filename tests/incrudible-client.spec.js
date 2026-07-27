@@ -261,7 +261,7 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
   expectCleanPage(errors);
 });
 
-test("renders checkbox wizard shells as hidden full-row containers", async ({
+test("toggles checkbox wizard containers on change", async ({
   page,
 }) => {
   const errors = await openFixture(page);
@@ -293,20 +293,18 @@ test("renders checkbox wizard shells as hidden full-row containers", async ({
     APP.formControls.replaceChildren(APP.renderEntries(schema));
   });
 
-  const shell = page.locator("fieldset.wizard");
-  await expect(shell).toHaveClass(/w-1/);
-  await expect(shell).toHaveAttribute("hidden", "");
-  await page.evaluate(() => APP.formHelpers.syncWizards());
-  await expect(page.locator("#details")).toBeDisabled();
+  const container = page.locator(
+    'label.form-control[for="include-details"] + fieldset.wizard',
+  );
+  await expect(container).toHaveClass(/w-1/);
+  await expect(container).toHaveAttribute("hidden", "");
 
   await page.locator("#include-details").check();
-  await page.evaluate(() => APP.formHelpers.syncWizards());
-  await expect(shell).not.toHaveAttribute("hidden", "");
+  await expect(container).not.toHaveAttribute("hidden", "");
   await expect(page.locator("#details")).toBeEnabled();
 
   await page.locator("#include-details").uncheck();
-  await page.evaluate(() => APP.formHelpers.syncWizards());
-  await expect(shell).toHaveAttribute("hidden", "");
+  await expect(container).toHaveAttribute("hidden", "");
   await expect(page.locator("#details")).toBeDisabled();
   expectCleanPage(errors);
 });
@@ -434,15 +432,13 @@ test("keeps dynamic lists correctly indexed and resets extra rows", async ({
   await page.locator("#tags-2").fill("last");
   await page.getByRole("button", { name: "Remove" }).first().click();
 
-  const rows = await page
-    .locator("#tags input")
-    .evaluateAll((inputs) =>
-      inputs.map((input) => ({
-        id: input.id,
-        name: input.name,
-        value: input.value,
-      })),
-    );
+  const rows = await page.locator("#tags input").evaluateAll((inputs) =>
+    inputs.map((input) => ({
+      id: input.id,
+      name: input.name,
+      value: input.value,
+    })),
+  );
   expect(rows).toEqual([
     { id: "tags-0", name: "tags_0", value: "first" },
     { id: "tags-1", name: "tags_1", value: "last" },
