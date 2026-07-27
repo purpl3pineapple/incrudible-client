@@ -1,5 +1,7 @@
 node_modules/
 .markdownlint.json
-.github
+.github/*
+!.github/workflows/
+!.github/workflows/**
 playwright-report/
 test-results/

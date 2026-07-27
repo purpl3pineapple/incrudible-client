@@ -453,6 +453,7 @@ test("copies only valid preview content and reports clipboard failures", async (
 	await page.locator("#notes").fill("Context");
 	await page.locator("#copy-preview").click();
 	expect(await page.evaluate(() => window.clipboardWrites)).toEqual([]);
+	await page.keyboard.press("Escape");
 
 	await page.locator("#case-number").fill("12345");
 	await page.locator("#copy-preview").click();

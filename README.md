@@ -47,7 +47,8 @@ npx playwright install chromium firefox webkit
 
 `npm test` rebuilds the production bundle, then tests that artifact in Chromium,
 Firefox, and WebKit. Use `npm run test:headed -- --project=chromium` to inspect
-the browser interactions locally.
+the browser interactions locally. GitHub Actions runs the same suite for every
+push and pull request, and rejects stale committed distribution bundles.
 
 ## Docs
 
