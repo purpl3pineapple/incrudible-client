@@ -711,6 +711,7 @@ export const APP = {
     }
 
     const fieldset = document.createElement("fieldset");
+    fieldset.dataset.type = entry.type;
 
     if (rule) {
       fieldset.hidden = true;
@@ -721,6 +722,15 @@ export const APP = {
       // wrapped as {wizard, test} with an explicit boolean test
       APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
     );
+
+    if (["checkbox", "radio"].includes(entry.type)) {
+      fieldset.className = "wizard w-1";
+      fieldset.append(...children);
+
+      const group = document.createDocumentFragment();
+      group.append(APP.renderFormControl(entry, rule), fieldset);
+      return group;
+    }
 
     fieldset.className = `wizard w-${entry.width || 1}`;
     fieldset.append(
@@ -1285,6 +1295,9 @@ export const APP = {
       },
       syncWizards(e, targetForm = APP.form) {
         const syncFieldset = (fieldset) => {
+          const external = ["checkbox", "radio"].includes(
+            fieldset.dataset.type,
+          );
           const controller = getWizardController(fieldset);
           const control = document.getElementById(controller?.htmlFor ?? "");
 
@@ -1304,7 +1317,7 @@ export const APP = {
             ),
           );
 
-          const targets = wizards.slice(1);
+          const targets = external ? wizards : wizards.slice(1);
 
           targets.forEach((wizard, i) => {
             const rule = activeRules[i] || {};
@@ -1634,7 +1647,9 @@ function createLabelToolbar({ label, hint }) {
 }
 
 function getWizardController(fieldset) {
-  return fieldset.querySelector(":scope > .form-control");
+  return ["checkbox", "radio"].includes(fieldset.dataset.type)
+    ? fieldset.previousElementSibling
+    : fieldset.querySelector(":scope > .form-control");
 }
 
 function syncCriteria(targetForm) {
