@@ -407,13 +407,22 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 			</div>`;
     const categorized = APP.formHelpers.copyText;
 
-    return { direct, categorized };
+    APP.workflow = { alertTab: "Queue Alerts", name: "Alert 42" };
+    APP.sidenav.innerHTML = `
+			<div class="nav-dropdown">
+				<button type="button" class="dropdown-button">Operations</button>
+				<a class="active" data-path="operations/queue">Queue</a>
+			</div>`;
+    const queue = APP.formHelpers.copyText;
+
+    return { direct, categorized, queue };
   });
 
   expect(prefixes).toEqual({
     direct: "Operations | Review | Case Number: 12345",
     categorized:
       "Operations | Review | Category: Escalation | Case Number: 12345",
+    queue: "Operations | Queue Alerts | Alert 42 | Case Number: 12345",
   });
   expectCleanPage(errors);
 });

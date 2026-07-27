@@ -964,11 +964,14 @@ export const APP = {
         const category = activeFlowLink?.textContent?.trim();
         const workflow = label(workflowDropdown);
         const department = label(departmentDropdown);
-        const prefix = departmentDropdown
-          ? [department, workflow, category && `Category: ${category}`]
-          : workflowDropdown
-            ? [label(workflowDropdown), category]
-            : [APP.workflowLabel];
+        const queue = APP.workflow;
+        const prefix = queue?.alertTab
+          ? [department || workflow, queue.alertTab, queue.name]
+          : departmentDropdown
+            ? [department, workflow, category && `Category: ${category}`]
+            : workflowDropdown
+              ? [label(workflowDropdown), category]
+              : [APP.workflowLabel];
 
         return rowText ? [...prefix, rowText].filter(Boolean).join(" | ") : "";
       },
