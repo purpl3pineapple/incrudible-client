@@ -327,13 +327,16 @@ test("publishes dialog outcomes and dismisses messages", async ({ page }) => {
 		});
 	});
 	await page.locator("#confirm-modal-cancel-button").click();
+	await expect.poll(() => page.evaluate(() => window.dialogEvents)).toEqual([
+		["cancelled", { id: 1 }],
+	]);
 
 	await page.evaluate(() => {
 		APP.confirm("Proceed again?", { header: "Second decision", detail: { id: 2 } });
 	});
 	await page.locator("#confirm-modal-confirm-button").click();
 
-	expect(await page.evaluate(() => window.dialogEvents)).toEqual([
+	await expect.poll(() => page.evaluate(() => window.dialogEvents)).toEqual([
 		["cancelled", { id: 1 }],
 		["accepted", { id: 2 }],
 	]);
