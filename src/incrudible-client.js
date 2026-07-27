@@ -889,7 +889,9 @@ export const APP = {
     when: (dependencies = new Map(), targetForm = APP.form) => {
       const data = new FormData(targetForm);
       const controlNames = new Set(
-        Array.from(targetForm?.elements ?? [], ({ name }) => name).filter(Boolean),
+        Array.from(targetForm?.elements ?? [], ({ name }) => name).filter(
+          Boolean,
+        ),
       );
 
       for (const [nameMatcher, test] of dependencies) {
@@ -1393,18 +1395,20 @@ export const APP = {
         syncCriteria(targetForm);
 
         wizards
-          .filter((fieldset) =>
-            ["checkbox", "radio"].includes(fieldset.dataset.type),
-          )
           .reverse()
           .forEach((fieldset) => {
+            const external = ["checkbox", "radio"].includes(
+              fieldset.dataset.type,
+            );
             const controller = getWizardController(fieldset);
             const targets = Array.from(
               fieldset.querySelectorAll(
                 ":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
               ),
             );
-            const show = !controller?.hidden && targets.some((target) => !target.hidden);
+            const show =
+              targets.some((target) => !target.hidden) &&
+              (!external || !controller?.hidden);
 
             fieldset.hidden = !show;
             fieldset.disabled = !show;
@@ -1704,8 +1708,14 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([id, criteria]) => {
-    const target = targetForm?.querySelector(`#${id}`);
+  Object.entries(rules).forEach(([name, criteria]) => {
+    const target =
+      Array.from(targetForm?.elements ?? []).find(
+        (control) => control.name === name,
+      ) ??
+      Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
+        (element) => element.dataset.name === name,
+      );
     const node =
       target instanceof HTMLFieldSetElement
         ? target
