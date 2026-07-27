@@ -1385,12 +1385,12 @@ export const APP = {
           targetForm?.querySelectorAll("fieldset.wizard") ?? [],
         );
 
+        syncCriteria(targetForm);
         wizards
           .filter(
             (fieldset) => !fieldset.parentElement?.closest("fieldset.wizard"),
           )
           .forEach(syncFieldset);
-        syncCriteria(targetForm);
       },
     },
     getValue: (control, targetForm = APP.form) => {
