@@ -1385,12 +1385,30 @@ export const APP = {
           targetForm?.querySelectorAll("fieldset.wizard") ?? [],
         );
 
-        syncCriteria(targetForm);
         wizards
           .filter(
             (fieldset) => !fieldset.parentElement?.closest("fieldset.wizard"),
           )
           .forEach(syncFieldset);
+        syncCriteria(targetForm);
+
+        wizards
+          .filter((fieldset) =>
+            ["checkbox", "radio"].includes(fieldset.dataset.type),
+          )
+          .reverse()
+          .forEach((fieldset) => {
+            const controller = getWizardController(fieldset);
+            const targets = Array.from(
+              fieldset.querySelectorAll(
+                ":scope > :is(.form-control, fieldset.wizard, fieldset.list)",
+              ),
+            );
+            const show = !controller?.hidden && targets.some((target) => !target.hidden);
+
+            fieldset.hidden = !show;
+            fieldset.disabled = !show;
+          });
       },
     },
     getValue: (control, targetForm = APP.form) => {
