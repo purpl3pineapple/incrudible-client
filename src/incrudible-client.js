@@ -1711,6 +1711,17 @@ function syncCriteria(targetForm) {
 			node
 				.querySelectorAll("input, select, textarea")
 				.forEach(control => (control.disabled = !show));
+
+			const wizard = node.parentElement;
+
+			if (
+				wizard instanceof HTMLFieldSetElement &&
+				wizard.classList.contains("wizard") &&
+				getWizardController(wizard) === node
+			) {
+				wizard.hidden = !show;
+				wizard.disabled = !show;
+			}
 		}
 	});
 }
