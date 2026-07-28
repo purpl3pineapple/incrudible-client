@@ -23,7 +23,8 @@ git push -u origin HEAD
 
 Open a pull request into `main`. CI builds the production bundle, runs the
 Playwright suite in Chromium, Firefox, and WebKit, and rejects a stale committed
-bundle. Squash merge after the required check passes.
+bundle. Once the required check passes, review the diff yourself and squash
+merge; approval from another account is not required.
 
 ## Commit and PR titles
 
@@ -43,7 +44,8 @@ because pull requests are squash merged.
 Release Please watches `main` and maintains a release pull request containing
 the next package version and changelog. Merge that PR when the accumulated
 changes are ready to publish. The merge creates the GitHub release and immutable
-version tag, such as `v1.0.1`.
+version tag, such as `v1.0.1`. This pull request is a release batching mechanism,
+not a request for peer approval.
 
 Do not manually edit package versions, changelogs, or tags during the normal
 release flow. Consumers should use an exact jsDelivr tag rather than `@main`:
@@ -53,7 +55,8 @@ https://cdn.jsdelivr.net/gh/purpl3pineapple/incrudible-client@v1.0.1/dist/incrud
 ```
 
 An urgent fix follows the same process on a `hotfix/` branch. Keeping the PR
-small and prioritizing its review is faster and safer than bypassing CI.
+small and merging it promptly after CI passes is faster and safer than bypassing
+CI.
 
 Repository maintainers should apply the branch rules and merge behavior in
 [docs/repository-settings.md](docs/repository-settings.md).

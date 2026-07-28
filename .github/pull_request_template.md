@@ -4,9 +4,11 @@ Describe the behavior changed and why.
 
 ## Verification
 
-- [ ] CI passes
 - [ ] `dist/incrudible-client.min.js` is rebuilt when source changed
 - [ ] Public behavior or API changes are documented
+
+CI is the required merge gate and reports its result directly on this pull
+request; it does not need a manual checkbox.
 
 ## Release
 
