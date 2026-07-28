@@ -704,14 +704,7 @@ export const APP = {
       return fieldset;
     }
 
-    const externalWizard = ["checkbox", "radio"].includes(entry.type) && rule;
-
-    if (
-      !(
-        (entry.wizards && entry.wizards.length && entry.type !== "textarea") ||
-        externalWizard
-      )
-    ) {
+    if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
       return APP.renderFormControl(entry, rule);
     }
 
@@ -1362,10 +1355,6 @@ export const APP = {
 
             if (wizard instanceof HTMLFieldSetElement) {
               wizard.disabled = !show;
-
-              if (show && wizard.childElementCount) {
-                syncFieldset(wizard);
-              }
             } else {
               wizard
                 .querySelectorAll("input, select, textarea")
@@ -1397,11 +1386,7 @@ export const APP = {
           targetForm?.querySelectorAll("fieldset.wizard") ?? [],
         );
 
-        wizards
-          .filter(
-            (fieldset) => !fieldset.parentElement?.closest("fieldset.wizard"),
-          )
-          .forEach(syncFieldset);
+        wizards.forEach(syncFieldset);
         syncCriteria(targetForm);
       },
     },

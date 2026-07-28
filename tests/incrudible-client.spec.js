@@ -308,20 +308,32 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
   const container = page.locator(
     'label.form-control[for="include-details"] + fieldset.wizard',
   );
+  const nestedContainer = page.locator(
+    'label.form-control[for="include-detail-notes"] + fieldset.wizard',
+  );
   await expect(container).toHaveClass(/w-1/);
   await expect(container).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toHaveAttribute("hidden", "");
 
   await page.locator("#include-details").check();
   await expect(container).not.toHaveAttribute("hidden", "");
   await expect(page.locator("#include-detail-notes")).toBeVisible();
+  await expect(nestedContainer).toHaveAttribute("hidden", "");
+
+  await page.locator("#include-detail-notes").check();
+  await expect(nestedContainer).not.toHaveAttribute("hidden", "");
+
+  await page.locator("#include-detail-notes").uncheck();
+  await expect(nestedContainer).toHaveAttribute("hidden", "");
 
   await page.locator("#include-details").uncheck();
   await expect(container).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toHaveAttribute("hidden", "");
   await expect(page.locator("#include-detail-notes")).not.toBeVisible();
   expectCleanPage(errors);
 });
 
-test("toggles checkbox wizard callers and shells as one rule target", async ({
+test("does not render an empty checkbox wizard shell", async ({
   page,
 }) => {
   const errors = await openFixture(page);
@@ -358,19 +370,21 @@ test("toggles checkbox wizard callers and shells as one rule target", async ({
   });
 
   const caller = page.locator('label.form-control[for="follow-up"]');
-  const shell = page.locator('fieldset.wizard[data-type="checkbox"]');
-  await expect(caller).not.toHaveAttribute("hidden", "");
-  await expect(shell).toHaveAttribute("hidden", "");
+  const shell = page.locator(
+    'label.form-control[for="follow-up"] + fieldset.wizard',
+  );
+  await expect(caller).toHaveAttribute("hidden", "");
+  await expect(shell).toHaveCount(0);
 
   await page.locator("#choice").selectOption("show");
   await page.evaluate(() => APP.formHelpers.syncWizards());
   await expect(caller).not.toHaveAttribute("hidden", "");
-  await expect(shell).not.toHaveAttribute("hidden", "");
+  await expect(shell).toHaveCount(0);
 
   await page.locator("#choice").selectOption("");
   await page.evaluate(() => APP.formHelpers.syncWizards());
-  await expect(caller).not.toHaveAttribute("hidden", "");
-  await expect(shell).toHaveAttribute("hidden", "");
+  await expect(caller).toHaveAttribute("hidden", "");
+  await expect(shell).toHaveCount(0);
   expectCleanPage(errors);
 });
 
