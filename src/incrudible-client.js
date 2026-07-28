@@ -786,8 +786,17 @@ export const APP = {
 
     google.script.run
       .withSuccessHandler((response) => {
+        if (!response || typeof response !== "object") {
+          fail("The server returned no response.");
+          return;
+        }
+
         if (!response.success) {
-          fail(response.error.message);
+          fail(
+            typeof response.error === "string"
+              ? response.error
+              : response.error?.message || "The server could not complete the request.",
+          );
           return;
         }
 
