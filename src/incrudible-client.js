@@ -1717,9 +1717,9 @@ function syncCriteria(targetForm) {
           ? node.nextElementSibling
           : null;
 
-      if (wizard && getWizardController(wizard) === node) {
-        wizard.hidden = !show;
-        wizard.disabled = !show;
+      if (wizard && getWizardController(wizard) === node && !show) {
+        wizard.hidden = true;
+        wizard.disabled = true;
       }
     }
   });

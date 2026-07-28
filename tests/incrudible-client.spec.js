@@ -268,10 +268,18 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
     const schema = [
       {
         type: "checkbox",
+        id: "allow-details",
+        name: "allowDetails",
+        label: "Allow details",
+        checked: true,
+      },
+      {
+        type: "checkbox",
         id: "include-details",
         name: "includeDetails",
         label: "Include details",
         width: 2,
+        criteria: [["allowDetails", true]],
         wizards: [
           {
             test: true,
@@ -298,11 +306,12 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
     ];
 
     APP.rules.wizardRules = {
-      includeDetails: schema[0].wizards,
-      includeDetailNotes: schema[0].wizards[0].wizard.wizards,
+      includeDetails: schema[1].wizards,
+      includeDetailNotes: schema[1].wizards[0].wizard.wizards,
     };
-    APP.rules.criteriaRules = {};
+    APP.rules.criteriaRules = { includeDetails: schema[1].criteria };
     APP.formControls.replaceChildren(APP.renderEntries(schema));
+    APP.formHelpers.syncWizards();
   });
 
   const container = page.locator(
@@ -313,29 +322,35 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
   );
   await expect(container).toHaveClass(/w-1/);
   await expect(container).toHaveAttribute("hidden", "");
+  await expect(container).toBeHidden();
   await expect(nestedContainer).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toBeHidden();
 
   await page.locator("#include-details").check();
   await expect(container).not.toHaveAttribute("hidden", "");
+  await expect(container).toBeVisible();
   await expect(page.locator("#include-detail-notes")).toBeVisible();
   await expect(nestedContainer).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toBeHidden();
 
   await page.locator("#include-detail-notes").check();
   await expect(nestedContainer).not.toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toBeVisible();
 
   await page.locator("#include-detail-notes").uncheck();
   await expect(nestedContainer).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toBeHidden();
 
   await page.locator("#include-details").uncheck();
   await expect(container).toHaveAttribute("hidden", "");
+  await expect(container).toBeHidden();
   await expect(nestedContainer).toHaveAttribute("hidden", "");
+  await expect(nestedContainer).toBeHidden();
   await expect(page.locator("#include-detail-notes")).not.toBeVisible();
   expectCleanPage(errors);
 });
 
-test("does not render an empty checkbox wizard shell", async ({
-  page,
-}) => {
+test("does not render an empty checkbox wizard shell", async ({ page }) => {
   const errors = await openFixture(page);
 
   await page.evaluate(() => {
