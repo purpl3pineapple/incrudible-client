@@ -403,7 +403,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
   expectCleanPage(errors);
 });
 
-test("uses workflow context in preview copy prefixes", async ({ page }) => {
+test("exposes immutable preview state", async ({ page }) => {
   const errors = await openFixture(page);
 
   const state = await page.evaluate(() => {
@@ -419,55 +419,21 @@ test("uses workflow context in preview copy prefixes", async ({ page }) => {
     );
     document.querySelector("#case-number").value = "12345";
 
-    APP.sidenav.innerHTML = `
-			<div class="nav-dropdown">
-				<button type="button" class="dropdown-button">Operations</button>
-				<a class="active" data-path="operations/review">Review</a>
-			</div>`;
-    APP.workflow = { department: "Operations", sheetName: "Review" };
   const initialValues = APP.values;
   const initialPreview = APP.preview;
-  const direct = APP.copyText;
+  const initialCopyText = APP.copyText;
 
   document.querySelector("#case-number").value = "67890";
   const currentValues = APP.values;
   const currentPreview = APP.preview;
-  document.querySelector("#case-number").value = "12345";
-
-    APP.sidenav.innerHTML = `
-			<div class="nav-dropdown">
-				<button type="button" class="dropdown-button">Operations</button>
-				<div class="nav-dropdown">
-					<button type="button" class="dropdown-button">Review</button>
-					<a class="active" data-path="operations/review/escalation">Escalation</a>
-				</div>
-			</div>`;
-  APP.workflow = {
-    department: "Operations",
-    sheetName: "Review",
-    category: "Escalation",
-  };
-  const categorized = APP.copyText;
-
-    APP.workflow = {
-      department: "Operations",
-      sheetName: "Queue Alerts",
-      alertName: "Alert 42",
-    };
-    APP.sidenav.innerHTML = `
-			<div class="nav-dropdown">
-				<button type="button" class="dropdown-button">Operations</button>
-				<a class="active" data-path="operations/queue">Queue</a>
-			</div>`;
-    const queue = APP.copyText;
 
     return {
-      prefixes: { direct, categorized, queue },
       snapshots: {
         initialValues,
         currentValues,
         initialPreview,
         currentPreview,
+        initialCopyText,
         valuesFrozen:
           Object.isFrozen(currentValues) &&
           Object.isFrozen(currentValues.caseNumber),
@@ -480,17 +446,12 @@ test("uses workflow context in preview copy prefixes", async ({ page }) => {
     };
   });
 
-  expect(state.prefixes).toEqual({
-    direct: "Operations (Review) | Case Number: 12345",
-    categorized:
-      "Operations (Review) | Category: Escalation | Case Number: 12345",
-    queue: "Operations | Queue Alerts | Alert 42 | Case Number: 12345",
-  });
   expect(state.snapshots).toEqual({
     initialValues: { caseNumber: ["12345"] },
     currentValues: { caseNumber: ["67890"] },
     initialPreview: [[undefined, "Case Number", "12345"]],
     currentPreview: [[undefined, "Case Number", "67890"]],
+    initialCopyText: "Case Number: 12345",
     valuesFrozen: true,
     previewFrozen: true,
     charCount: state.snapshots.copyTextLength,

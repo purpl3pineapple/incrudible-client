@@ -946,34 +946,8 @@ export const APP = {
         const rowText = this.preview
           .map(([, label, value]) => `${label}: ${value}`)
           .join(" | ");
-        const activeFlowLink = APP.activeFlowLink;
-        const workflowDropdown = activeFlowLink?.closest(".nav-dropdown");
-        const departmentDropdown =
-          workflowDropdown?.parentElement?.closest(".nav-dropdown");
-        const label = (element) =>
-          element
-            ?.querySelector(":scope > .dropdown-button")
-            ?.textContent?.trim();
-        const category = activeFlowLink?.textContent?.trim();
-        const workflow = label(workflowDropdown);
-        const department = label(departmentDropdown);
-        const context = APP.workflow;
-        const prefix = context?.department && context?.sheetName
-          ? context.alertName
-            ? [context.department, context.sheetName, context.alertName]
-            : [
-                `${context.department} (${context.sheetName})`,
-                context.category && `Category: ${context.category}`,
-              ]
-          : context?.alertTab
-            ? [department || workflow, context.alertTab, context.name]
-          : departmentDropdown
-            ? [department, workflow, category && `Category: ${category}`]
-            : workflowDropdown
-              ? [label(workflowDropdown), category]
-              : [APP.workflowLabel];
 
-        return rowText ? [...prefix, rowText].filter(Boolean).join(" | ") : "";
+        return rowText;
       },
       get currencyInputs() {
         return this.inputs.filter(
@@ -1516,10 +1490,7 @@ export const APP = {
 
     return Object.freeze(
       Object.fromEntries(
-        Array.from(names, (name) => [
-          name,
-          Object.freeze(data.getAll(name)),
-        ]),
+        Array.from(names, (name) => [name, Object.freeze(data.getAll(name))]),
       ),
     );
   },
