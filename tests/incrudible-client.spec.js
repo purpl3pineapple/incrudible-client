@@ -419,13 +419,13 @@ test("exposes immutable preview state", async ({ page }) => {
     );
     document.querySelector("#case-number").value = "12345";
 
-  const initialValues = APP.values;
-  const initialPreview = APP.preview;
-  const initialCopyText = APP.copyText;
+    const initialValues = APP.values;
+    const initialPreview = APP.preview;
+    const initialCopyText = APP.copyText;
 
-  document.querySelector("#case-number").value = "67890";
-  const currentValues = APP.values;
-  const currentPreview = APP.preview;
+    document.querySelector("#case-number").value = "67890";
+    const currentValues = APP.values;
+    const currentPreview = APP.preview;
 
     return {
       snapshots: {
@@ -438,8 +438,7 @@ test("exposes immutable preview state", async ({ page }) => {
           Object.isFrozen(currentValues) &&
           Object.isFrozen(currentValues.caseNumber),
         previewFrozen:
-          Object.isFrozen(currentPreview) &&
-          Object.isFrozen(currentPreview[0]),
+          Object.isFrozen(currentPreview) && Object.isFrozen(currentPreview[0]),
         charCount: APP.charCount,
         copyTextLength: APP.copyText.length,
       },
@@ -665,6 +664,15 @@ test("handles Apps Script success and both failure paths", async ({ page }) => {
   );
   await expect(page.locator("#app-overlay")).not.toHaveClass(/active/);
 
+  await installServer({ type: "response", response: null });
+  await page.evaluate(() => {
+    APP.runServer("save", [], { prefix: "Couldn't save: ", onData: () => {} });
+  });
+  await expect(page.getByRole("status").last()).toHaveText(
+    "Couldn't save: The server returned no response.",
+  );
+  await expect(page.locator("#app-overlay")).not.toHaveClass(/active/);
+
   await installServer({ type: "transport", message: "Offline" });
   await page.evaluate(() => {
     APP.runServer("save", [], { prefix: "Couldn't save: ", onData: () => {} });
@@ -725,7 +733,7 @@ test("copies only valid preview content and reports clipboard failures", async (
   await page.locator("#case-number").fill("12345");
   await page.locator("#copy-preview").click();
   expect(await page.evaluate(() => window.clipboardWrites)).toEqual([
-    "Review | Case Number: 12345 | Notes: Context",
+    "Case Number: 12345 | Notes: Context",
   ]);
   await expect(page.getByRole("status").last()).toHaveText(
     "Copied to clipboard.",
