@@ -403,7 +403,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
   expectCleanPage(errors);
 });
 
-test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
+test("uses workflow context in preview copy prefixes", async ({ page }) => {
   const errors = await openFixture(page);
 
   const state = await page.evaluate(() => {
@@ -424,6 +424,7 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 				<button type="button" class="dropdown-button">Operations</button>
 				<a class="active" data-path="operations/review">Review</a>
 			</div>`;
+    APP.workflow = { department: "Operations", sheetName: "Review" };
   const initialValues = APP.values;
   const initialPreview = APP.preview;
   const direct = APP.copyText;
@@ -441,9 +442,18 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 					<a class="active" data-path="operations/review/escalation">Escalation</a>
 				</div>
 			</div>`;
+  APP.workflow = {
+    department: "Operations",
+    sheetName: "Review",
+    category: "Escalation",
+  };
   const categorized = APP.copyText;
 
-    APP.workflow = { alertTab: "Queue Alerts", name: "Alert 42" };
+    APP.workflow = {
+      department: "Operations",
+      sheetName: "Queue Alerts",
+      alertName: "Alert 42",
+    };
     APP.sidenav.innerHTML = `
 			<div class="nav-dropdown">
 				<button type="button" class="dropdown-button">Operations</button>
@@ -471,9 +481,9 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
   });
 
   expect(state.prefixes).toEqual({
-    direct: "Operations | Review | Case Number: 12345",
+    direct: "Operations (Review) | Case Number: 12345",
     categorized:
-      "Operations | Review | Category: Escalation | Case Number: 12345",
+      "Operations (Review) | Category: Escalation | Case Number: 12345",
     queue: "Operations | Queue Alerts | Alert 42 | Case Number: 12345",
   });
   expect(state.snapshots).toEqual({

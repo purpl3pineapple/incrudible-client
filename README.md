@@ -1,8 +1,12 @@
 # incrudible-client
 
 Shared client-side JS framework for InCRUDibly-based Apps Script apps,
-built via `esbuild` and served via jsDelivr's GitHub CDN mode
-(`@main`-pinned).
+built via `esbuild` and served via jsDelivr's GitHub CDN mode. Production
+consumers should pin an immutable release tag:
+
+```text
+https://cdn.jsdelivr.net/gh/purpl3pineapple/incrudible-client@v1.0.0/dist/incrudible-client.min.js
+```
 
 `APP.imageToUpload(file)` reads a browser `File` and resolves to
 `{ name, mimeType, base64 }`, ready to combine with a Drive `folderId` for
@@ -48,7 +52,17 @@ npx playwright install chromium firefox webkit
 `npm test` rebuilds the production bundle, then tests that artifact in Chromium,
 Firefox, and WebKit. Use `npm run test:headed -- --project=chromium` to inspect
 the browser interactions locally. GitHub Actions runs the same suite for every
-push and pull request, and rejects stale committed distribution bundles.
+pull request and update to `main`, and rejects stale committed distribution
+bundles.
+
+## Development and releases
+
+Changes are developed on short-lived branches and squash merged through pull
+requests after CI passes. Conventional Commit PR titles drive Release Please,
+which maintains the version/changelog release PR and creates immutable GitHub
+release tags when that PR is merged. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+the complete workflow and [docs/repository-settings.md](docs/repository-settings.md)
+for the GitHub rules that enforce it.
 
 ## Docs
 

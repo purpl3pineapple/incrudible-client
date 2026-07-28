@@ -957,9 +957,16 @@ export const APP = {
         const category = activeFlowLink?.textContent?.trim();
         const workflow = label(workflowDropdown);
         const department = label(departmentDropdown);
-        const queue = APP.workflow;
-        const prefix = queue?.alertTab
-          ? [department || workflow, queue.alertTab, queue.name]
+        const context = APP.workflow;
+        const prefix = context?.department && context?.sheetName
+          ? context.alertName
+            ? [context.department, context.sheetName, context.alertName]
+            : [
+                `${context.department} (${context.sheetName})`,
+                context.category && `Category: ${context.category}`,
+              ]
+          : context?.alertTab
+            ? [department || workflow, context.alertTab, context.name]
           : departmentDropdown
             ? [department, workflow, category && `Category: ${category}`]
             : workflowDropdown
