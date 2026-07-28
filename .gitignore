@@ -1,6 +1,8 @@
 node_modules/
 .markdownlint.json
 .github/*
+!.github/dependabot.yml
+!.github/pull_request_template.md
 !.github/workflows/
 !.github/workflows/**
 playwright-report/
