@@ -425,14 +425,14 @@ test("uses workflow context in preview copy prefixes", async ({ page }) => {
 				<a class="active" data-path="operations/review">Review</a>
 			</div>`;
     APP.workflow = { department: "Operations", sheetName: "Review" };
-  const initialValues = APP.values;
-  const initialPreview = APP.preview;
-  const direct = APP.copyText;
+    const initialValues = APP.values;
+    const initialPreview = APP.preview;
+    const direct = APP.copyText;
 
-  document.querySelector("#case-number").value = "67890";
-  const currentValues = APP.values;
-  const currentPreview = APP.preview;
-  document.querySelector("#case-number").value = "12345";
+    document.querySelector("#case-number").value = "67890";
+    const currentValues = APP.values;
+    const currentPreview = APP.preview;
+    document.querySelector("#case-number").value = "12345";
 
     APP.sidenav.innerHTML = `
 			<div class="nav-dropdown">
@@ -442,12 +442,12 @@ test("uses workflow context in preview copy prefixes", async ({ page }) => {
 					<a class="active" data-path="operations/review/escalation">Escalation</a>
 				</div>
 			</div>`;
-  APP.workflow = {
-    department: "Operations",
-    sheetName: "Review",
-    category: "Escalation",
-  };
-  const categorized = APP.copyText;
+    APP.workflow = {
+      department: "Operations",
+      sheetName: "Review",
+      category: "Escalation",
+    };
+    const categorized = APP.copyText;
 
     APP.workflow = {
       department: "Operations",
@@ -472,8 +472,7 @@ test("uses workflow context in preview copy prefixes", async ({ page }) => {
           Object.isFrozen(currentValues) &&
           Object.isFrozen(currentValues.caseNumber),
         previewFrozen:
-          Object.isFrozen(currentPreview) &&
-          Object.isFrozen(currentPreview[0]),
+          Object.isFrozen(currentPreview) && Object.isFrozen(currentPreview[0]),
         charCount: APP.charCount,
         copyTextLength: APP.copyText.length,
       },

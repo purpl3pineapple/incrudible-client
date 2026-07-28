@@ -958,20 +958,21 @@ export const APP = {
         const workflow = label(workflowDropdown);
         const department = label(departmentDropdown);
         const context = APP.workflow;
-        const prefix = context?.department && context?.sheetName
-          ? context.alertName
-            ? [context.department, context.sheetName, context.alertName]
-            : [
-                `${context.department} (${context.sheetName})`,
-                context.category && `Category: ${context.category}`,
-              ]
-          : context?.alertTab
-            ? [department || workflow, context.alertTab, context.name]
-          : departmentDropdown
-            ? [department, workflow, category && `Category: ${category}`]
-            : workflowDropdown
-              ? [label(workflowDropdown), category]
-              : [APP.workflowLabel];
+        const prefix =
+          context?.department && context?.sheetName
+            ? context.alertName
+              ? [context.department, context.sheetName, context.alertName]
+              : [
+                  `${context.department} (${context.sheetName})`,
+                  context.category && `Category: ${context.category}`,
+                ]
+            : context?.alertTab
+              ? [department || workflow, context.alertTab, context.name]
+              : departmentDropdown
+                ? [department, workflow, category && `Category: ${category}`]
+                : workflowDropdown
+                  ? [label(workflowDropdown), category]
+                  : [APP.workflowLabel];
 
         return rowText ? [...prefix, rowText].filter(Boolean).join(" | ") : "";
       },
@@ -1516,10 +1517,7 @@ export const APP = {
 
     return Object.freeze(
       Object.fromEntries(
-        Array.from(names, (name) => [
-          name,
-          Object.freeze(data.getAll(name)),
-        ]),
+        Array.from(names, (name) => [name, Object.freeze(data.getAll(name))]),
       ),
     );
   },
