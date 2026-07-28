@@ -406,7 +406,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
 test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
   const errors = await openFixture(page);
 
-  const prefixes = await page.evaluate(() => {
+  const state = await page.evaluate(() => {
     APP.formControls.replaceChildren(
       APP.renderEntries([
         {
@@ -424,7 +424,14 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 				<button type="button" class="dropdown-button">Operations</button>
 				<a class="active" data-path="operations/review">Review</a>
 			</div>`;
-    const direct = APP.formHelpers.copyText;
+  const initialValues = APP.values;
+  const initialPreview = APP.preview;
+  const direct = APP.copyText;
+
+  document.querySelector("#case-number").value = "67890";
+  const currentValues = APP.values;
+  const currentPreview = APP.preview;
+  document.querySelector("#case-number").value = "12345";
 
     APP.sidenav.innerHTML = `
 			<div class="nav-dropdown">
@@ -434,7 +441,7 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 					<a class="active" data-path="operations/review/escalation">Escalation</a>
 				</div>
 			</div>`;
-    const categorized = APP.formHelpers.copyText;
+  const categorized = APP.copyText;
 
     APP.workflow = { alertTab: "Queue Alerts", name: "Alert 42" };
     APP.sidenav.innerHTML = `
@@ -442,16 +449,42 @@ test("uses sidenav ownership in preview copy prefixes", async ({ page }) => {
 				<button type="button" class="dropdown-button">Operations</button>
 				<a class="active" data-path="operations/queue">Queue</a>
 			</div>`;
-    const queue = APP.formHelpers.copyText;
+    const queue = APP.copyText;
 
-    return { direct, categorized, queue };
+    return {
+      prefixes: { direct, categorized, queue },
+      snapshots: {
+        initialValues,
+        currentValues,
+        initialPreview,
+        currentPreview,
+        valuesFrozen:
+          Object.isFrozen(currentValues) &&
+          Object.isFrozen(currentValues.caseNumber),
+        previewFrozen:
+          Object.isFrozen(currentPreview) &&
+          Object.isFrozen(currentPreview[0]),
+        charCount: APP.charCount,
+        copyTextLength: APP.copyText.length,
+      },
+    };
   });
 
-  expect(prefixes).toEqual({
+  expect(state.prefixes).toEqual({
     direct: "Operations | Review | Case Number: 12345",
     categorized:
       "Operations | Review | Category: Escalation | Case Number: 12345",
     queue: "Operations | Queue Alerts | Alert 42 | Case Number: 12345",
+  });
+  expect(state.snapshots).toEqual({
+    initialValues: { caseNumber: ["12345"] },
+    currentValues: { caseNumber: ["67890"] },
+    initialPreview: [[undefined, "Case Number", "12345"]],
+    currentPreview: [[undefined, "Case Number", "67890"]],
+    valuesFrozen: true,
+    previewFrozen: true,
+    charCount: state.snapshots.copyTextLength,
+    copyTextLength: state.snapshots.copyTextLength,
   });
   expectCleanPage(errors);
 });

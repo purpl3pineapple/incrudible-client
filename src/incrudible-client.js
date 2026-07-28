@@ -1191,7 +1191,7 @@ export const APP = {
         });
       },
       renderPreview() {
-        const rows = APP._internals.form.preview;
+        const rows = APP.preview;
         let currentGroup;
 
         APP.previewList.replaceChildren(
@@ -1502,6 +1502,30 @@ export const APP = {
   },
   match: (test, values) => {
     return APP._internals.match(test, values);
+  },
+  get values() {
+    const data = APP.form ? new FormData(APP.form) : new FormData();
+    const names = new Set(data.keys());
+
+    return Object.freeze(
+      Object.fromEntries(
+        Array.from(names, (name) => [
+          name,
+          Object.freeze(data.getAll(name)),
+        ]),
+      ),
+    );
+  },
+  get preview() {
+    return Object.freeze(
+      APP._internals.form.preview.map((row) => Object.freeze(row)),
+    );
+  },
+  get copyText() {
+    return APP._internals.form.copyText;
+  },
+  get charCount() {
+    return APP.copyText.length;
   },
   get formHelpers() {
     return APP._internals.form;
@@ -1913,7 +1937,7 @@ function setupForms(onFormReset) {
       return;
     }
 
-    const { charCount, copyText } = APP.formHelpers;
+    const { charCount, copyText } = APP;
 
     if (charCount) {
       await copyToClipboard(copyText);
