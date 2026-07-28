@@ -32,5 +32,5 @@ jobs:
           RELEASE_PRS: ${{ steps.release.outputs.prs }}
         run: |
           jq -r '.[].headBranchName' <<< "$RELEASE_PRS" | while read -r branch; do
-            gh workflow run tests.yml --ref "$branch"
+            gh workflow run tests.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
           done
