@@ -2039,9 +2039,18 @@ function setupDialogs() {
 }
 
 function setupForms(onFormReset) {
-  APP.form?.addEventListener("change", (event) =>
-    APP._internals.form.syncWizards(event),
-  );
+  APP.form?.addEventListener("input", (event) => {
+    APP._internals.form.syncWizards(event);
+    APP._internals.form.syncArticles();
+    APP._internals.form.renderPreview();
+  });
+  APP.form?.addEventListener("change", (event) => {
+    APP._internals.form.syncWizards(event);
+    APP._internals.form.syncArticles();
+    APP._internals.form.syncModals(event);
+    APP._internals.form.syncAlerts();
+    APP._internals.form.renderPreview();
+  });
   APP.form?.addEventListener("reset", () =>
     requestAnimationFrame(() => {
       APP._internals.form.resetLists();
