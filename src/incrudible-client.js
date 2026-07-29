@@ -246,6 +246,8 @@ export const APP = {
               feedbackWizardRules: feedback.rules?.wizards || {},
               feedbackCriteriaRules: feedback.rules?.criteria || {},
               feedbackAlertRules: feedback.rules?.alerts || {},
+              feedbackRequisitionRules: feedback.rules?.requisitions || {},
+              feedbackAutofillRules: feedback.rules?.autofills || {},
               feedbackModalRules: feedback.rules?.modals || {},
             }
           : {},
@@ -795,7 +797,8 @@ export const APP = {
           fail(
             typeof response.error === "string"
               ? response.error
-              : response.error?.message || "The server could not complete the request.",
+              : response.error?.message ||
+                  "The server could not complete the request.",
           );
           return;
         }
@@ -1378,6 +1381,8 @@ export const APP = {
 
         wizards.forEach(syncFieldset);
         syncCriteria(targetForm);
+        syncAutofills(targetForm);
+        syncRequisitions(targetForm);
       },
     },
     getValue: (control, targetForm = APP.form) => {
@@ -1686,6 +1691,71 @@ function getWizardController(fieldset) {
   return ["checkbox", "radio"].includes(fieldset.dataset.type)
     ? fieldset.previousElementSibling
     : fieldset.querySelector(":scope > .form-control");
+}
+
+function getRuleTarget(targetForm, name) {
+  return (
+    Array.from(targetForm?.elements ?? []).find(
+      (control) => control.name === name,
+    ) ??
+    Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
+      (element) => element.dataset.name === name,
+    )
+  );
+}
+
+function syncAutofills(targetForm) {
+  const rules =
+    targetForm === APP.feedbackForm
+      ? APP.rules.feedbackAutofillRules
+      : APP.rules.autofillRules;
+
+  Object.entries(rules).forEach(([name, autofills]) => {
+    const target = getRuleTarget(targetForm, name);
+    const eligible =
+      (target instanceof HTMLInputElement &&
+        !["checkbox", "file", "radio"].includes(target.type)) ||
+      (target instanceof HTMLSelectElement && !target.multiple);
+
+    if (!eligible || target.disabled) {
+      return;
+    }
+
+    const rule = autofills.find((autofill) =>
+      APP._internals.when(autofill.when, targetForm),
+    );
+
+    if (!rule) {
+      return;
+    }
+
+    target.value = `${
+      APP._internals.form.resolveValueReferences(rule.value, target) ?? ""
+    }`;
+  });
+}
+
+function syncRequisitions(targetForm) {
+  const rules =
+    targetForm === APP.feedbackForm
+      ? APP.rules.feedbackRequisitionRules
+      : APP.rules.requisitionRules;
+
+  Object.entries(rules).forEach(([name, requisitions]) => {
+    const target = getRuleTarget(targetForm, name);
+
+    if (
+      !(
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    target.required = APP._internals.when(requisitions, targetForm);
+  });
 }
 
 function syncCriteria(targetForm) {

@@ -350,6 +350,117 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
   expectCleanPage(errors);
 });
 
+test("syncs conditional requisitions and autofills", async ({ page }) => {
+  const errors = await openFixture(page);
+
+  await page.evaluate(() => {
+    const schema = [
+      {
+        type: "select",
+        id: "mode",
+        name: "mode",
+        label: "Mode",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Auto", value: "auto" },
+          { label: "Required", value: "required" },
+        ],
+      },
+      { type: "text", id: "source", name: "source", label: "Source" },
+      {
+        type: "text",
+        id: "conditional-note",
+        name: "conditionalNote",
+        label: "Conditional Note",
+        constraints: { required: true },
+      },
+      {
+        type: "text",
+        id: "autofilled-note",
+        name: "autofilledNote",
+        label: "Autofilled Note",
+      },
+      {
+        type: "select",
+        id: "autofilled-select",
+        name: "autofilledSelect",
+        label: "Autofilled Select",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Auto", value: "auto" },
+        ],
+      },
+      {
+        type: "textarea",
+        id: "autofilled-textarea",
+        name: "autofilledTextarea",
+        label: "Autofilled Textarea",
+      },
+      {
+        type: "checkbox",
+        id: "autofilled-checkbox",
+        name: "autofilledCheckbox",
+        label: "Autofilled Checkbox",
+      },
+    ];
+
+    APP.rules.requisitionRules = {
+      conditionalNote: [["mode", "required"]],
+    };
+    APP.rules.autofillRules = {
+      autofilledNote: [
+        { value: "First !{#source}", when: [["mode", "auto"]] },
+        { value: "Ignored", when: [["mode", "auto"]] },
+      ],
+      autofilledSelect: [{ value: "auto", when: [["mode", "auto"]] }],
+      autofilledTextarea: [{ value: "Ignored", when: [["mode", "auto"]] }],
+      autofilledCheckbox: [{ value: "true", when: [["mode", "auto"]] }],
+    };
+    APP.formControls.replaceChildren(APP.renderEntries(schema));
+
+    APP.formHelpers.formControls.forEach((control) => {
+      control.addEventListener("input", (event) =>
+        APP.formHelpers.syncWizards(event),
+      );
+      control.addEventListener("change", (event) =>
+        APP.formHelpers.syncWizards(event),
+      );
+    });
+
+    APP.formHelpers.syncWizards();
+  });
+
+  await expect(page.locator("#conditional-note")).not.toHaveAttribute(
+    "required",
+    "",
+  );
+
+  await page.locator("#source").fill("case 123");
+  await page.locator("#mode").selectOption("auto");
+  await expect(page.locator("#autofilled-note")).toHaveValue("First case 123");
+  await expect(page.locator("#autofilled-select")).toHaveValue("auto");
+  await expect(page.locator("#autofilled-textarea")).toHaveValue("");
+  await expect(page.locator("#autofilled-checkbox")).not.toBeChecked();
+
+  await page.locator("#mode").selectOption("");
+  await expect(page.locator("#autofilled-note")).toHaveValue("First case 123");
+
+  await page.locator("#mode").selectOption("required");
+  await expect(page.locator("#conditional-note")).toHaveAttribute(
+    "required",
+    "",
+  );
+  expect(
+    await page.locator("#app-form").evaluate((form) => form.checkValidity()),
+  ).toBe(false);
+
+  await page.locator("#conditional-note").fill("Provided");
+  expect(
+    await page.locator("#app-form").evaluate((form) => form.checkValidity()),
+  ).toBe(true);
+  expectCleanPage(errors);
+});
+
 test("does not render an empty checkbox wizard shell", async ({ page }) => {
   const errors = await openFixture(page);
 
