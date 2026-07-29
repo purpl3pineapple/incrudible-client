@@ -1091,12 +1091,16 @@ export const APP = {
           } else if (control.tagName === "SELECT") {
             if (control.multiple) {
               value = Array.from(control.selectedOptions)
-                .map((option) => option.value)
+                .map((option) =>
+                  this.resolveValueReferences(option.value, control),
+                )
                 .filter(Boolean)
                 .join(", ");
             } else {
               const option = control.selectedOptions[0];
-              value = option?.value || "";
+              value = option
+                ? this.resolveValueReferences(option.value, control)
+                : "";
             }
           } else {
             value = control.value;
@@ -1168,7 +1172,7 @@ export const APP = {
       get urlInputs() {
         return this.inputs.filter((control) => control.type === "url");
       },
-      // A conditional token uses JSON-safe rule data:
+      // A conditional token uses quoted rule data:
       // !{[["nameMatcher", test], "text"]}. The text is omitted unless
       // the dependency passes, then its ordinary !{#id} tokens resolve.
       resolveValueReferences(value, control) {
@@ -1177,23 +1181,46 @@ export const APP = {
         }
 
         const conditional = value.replaceAll(
-          /!\{(\[\[(?:"(?:\\.|[^"\\])*")\s*,\s*(?:"(?:\\.|[^"\\])*"|true|false)\]\s*,\s*"(?:\\.|[^"\\])*"\])\}/g,
-          (token, serialized) => {
+          /!\{\[\[\s*(["'])((?:\\.|(?!\1)[^\\])*)\1\s*,\s*(?:(["'])((?:\\.|(?!\3)[^\\])*)\3|(true|false))\s*\]\s*,\s*(["'])((?:\\.|(?!\6)[^\\])*)\6\s*\]\}/g,
+          (
+            token,
+            nameQuote,
+            name,
+            testQuote,
+            stringTest,
+            booleanTest,
+            textQuote,
+            text,
+          ) => {
             try {
-              const [dependency, text] = JSON.parse(serialized);
+              const decode = (quote, string) =>
+                JSON.parse(
+                  `"${
+                    quote === "'"
+                      ? string
+                          .replaceAll(/(?<!\\)"/g, '\\"')
+                          .replaceAll("\\'", "'")
+                      : string
+                  }"`,
+                );
+              const dependency = [
+                decode(nameQuote, name),
+                testQuote
+                  ? decode(testQuote, stringTest)
+                  : booleanTest === "true",
+              ];
+              const content = decode(textQuote, text);
 
               if (
-                !Array.isArray(dependency) ||
-                dependency.length !== 2 ||
                 typeof dependency[0] !== "string" ||
                 !["string", "boolean"].includes(typeof dependency[1]) ||
-                typeof text !== "string"
+                typeof content !== "string"
               ) {
                 return token;
               }
 
               return APP._internals.when([dependency], control.form)
-                ? text
+                ? content
                 : "";
             } catch {
               return token;

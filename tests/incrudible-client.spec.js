@@ -297,8 +297,16 @@ test("resolves conditional value references", async ({ page }) => {
           options: [
             { label: "Choose", value: "" },
             {
+              label: "Direct",
+              value: "Direct !{#source}",
+            },
+            {
               label: "Conditional",
               value: '!{[["gate",true],"From !{#source}"]}',
+            },
+            {
+              label: "Single quoted conditional",
+              value: "!{[['gate',true],'From !{#source}']}",
             },
           ],
         },
@@ -318,14 +326,38 @@ test("resolves conditional value references", async ({ page }) => {
       document.querySelector("#conditional-select"),
     ),
   );
+  const singleQuotedInactive = await page.evaluate(() =>
+    APP.formHelpers.resolveValueReferences(
+      "!{[['gate',true],'From !{#source}']}",
+      document.querySelector("#conditional-select"),
+    ),
+  );
 
   expect(inactive).toBe("");
+  expect(singleQuotedInactive).toBe("");
   expect(malformed).toBe('!{[["gate",true],42]}');
 
   await page.locator("#source").fill("case 123");
+  await page.locator("#conditional-select").selectOption({ label: "Direct" });
+  await page.evaluate(() => APP.formHelpers.renderPreview());
+
+  await expect(page.locator("#preview-list")).toContainText("Direct case 123");
+
   await page.locator("#gate").check();
   await page.locator("#conditional-select").selectOption({
     label: "Conditional",
+  });
+  await page.evaluate(() => APP.formHelpers.renderPreview());
+
+  await expect(page.locator("#preview-list")).toContainText("From case 123");
+  expect(
+    await page
+      .locator("#conditional-select")
+      .evaluate((control) => new FormData(control.form).get(control.name)),
+  ).toBe('!{[["gate",true],"From !{#source}"]}');
+
+  await page.locator("#conditional-select").selectOption({
+    label: "Single quoted conditional",
   });
   await page.evaluate(() => APP.formHelpers.renderPreview());
 
