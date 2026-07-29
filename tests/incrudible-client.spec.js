@@ -331,6 +331,11 @@ test("resolves conditional value references", async ({ page }) => {
           label: "Name regex",
           value: "Name !{#/^caseReference/}",
         },
+        {
+          label: "Conditional ID regex",
+          value:
+            '!{[["/^id-reference-/",true],"Conditional ID !{#/^id-reference-/}"]}',
+        },
       ],
     },
   ];
@@ -428,7 +433,61 @@ test("resolves conditional value references", async ({ page }) => {
   await expect(page.locator("#preview-list dd").last()).toHaveText(
     "Name matched by name",
   );
+
+  await page.locator("#conditional-select").selectOption({
+    label: "Conditional ID regex",
+  });
+  await expect(page.locator("#preview-list dd").last()).toHaveText(
+    "Conditional ID matched by id",
+  );
   await expect(page.locator("#preview-list")).not.toContainText("!{#");
+  expectCleanPage(errors);
+});
+
+test("evaluates dependencies against complete control groups", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+  const schema = [
+    {
+      type: "checkbox",
+      id: "grouped-gate-first",
+      name: "groupedGate",
+      label: "First gate",
+      value: "first",
+    },
+    {
+      type: "checkbox",
+      id: "grouped-gate-second",
+      name: "groupedGate",
+      label: "Second gate",
+      value: "second",
+    },
+    {
+      type: "select",
+      id: "group-result",
+      name: "groupResult",
+      label: "Result",
+      options: [
+        { label: "Choose", value: "" },
+        {
+          label: "None selected",
+          value: '!{[["groupedGate",false],"None selected"]}',
+        },
+      ],
+    },
+  ];
+
+  await mountWorkflow(page, { schema });
+  await page.locator("#group-result").selectOption({ label: "None selected" });
+
+  const result = page.locator("#preview-list dt", { hasText: "Result" });
+  await expect(result.locator("xpath=following-sibling::dd[1]")).toHaveText(
+    "None selected",
+  );
+
+  await page.locator("#grouped-gate-first").check();
+  await expect(result).toHaveCount(0);
   expectCleanPage(errors);
 });
 

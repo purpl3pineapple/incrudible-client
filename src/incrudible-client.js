@@ -906,28 +906,35 @@ export const APP = {
           (control.id || control.name) &&
           !control.disabled,
       );
+      const controlKeys = ["id", "name"].flatMap((property) =>
+        [
+          ...new Set(
+            controls.map((control) => control[property]).filter(Boolean),
+          ),
+        ].map((key) => [property, key]),
+      );
 
-      for (const [key, test] of dependencies) {
-        const idMatch = controls.find((control) => control.id === key);
-        const matches = idMatch
-          ? [idMatch]
-          : controls.filter(
-              (control) =>
-                control.name &&
-                APP._internals.match(key, [control.name]),
-            );
+      for (const [keyMatcher, test] of dependencies) {
+        const keys = controlKeys.filter(([, key]) =>
+          APP._internals.match(keyMatcher, [key]),
+        );
 
-        if (!matches.length) {
-          console.warn(`Dependency references unknown control "${key}"`);
+        if (!keys.length) {
+          console.warn(
+            `Dependency references unknown control "${keyMatcher}"`,
+          );
         }
 
         if (
-          !matches.some((control) =>
-            APP._internals.match(
-              test,
-              APP._internals.getValue(control, targetForm),
-            ),
-          )
+          !keys.some(([property, key]) => {
+            const values = controls
+              .filter((control) => control[property] === key)
+              .flatMap((control) =>
+                APP._internals.getValue(control, targetForm),
+              );
+
+            return APP._internals.match(test, values);
+          })
         ) {
           return false;
         }
@@ -1774,19 +1781,18 @@ function getWizardController(fieldset) {
 }
 
 function getRuleTargets(targetForm, key) {
-  const controls = Array.from(targetForm?.elements ?? []);
-  const idMatch = controls.find((control) => control.id === key);
-
-  return idMatch
-    ? [idMatch]
-    : controls.filter((control) => control.name === key);
+  return Array.from(targetForm?.elements ?? []).filter((control) =>
+    [control.id, control.name].some(
+      (value) => value && APP._internals.match(key, [value]),
+    ),
+  );
 }
 
 function getRuleTarget(targetForm, key) {
   return (
     getRuleTargets(targetForm, key)[0] ??
     Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-      (element) => element.dataset.name === key,
+      (element) => APP._internals.match(key, [element.dataset.name]),
     )
   );
 }
