@@ -261,6 +261,58 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
   expectCleanPage(errors);
 });
 
+test("resolves conditional value references", async ({ page }) => {
+  const errors = await openFixture(page);
+
+  await page.evaluate(() => {
+    APP.formControls.replaceChildren(
+      APP.renderEntries([
+        { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+        { type: "text", id: "source", name: "source", label: "Source" },
+        {
+          type: "select",
+          id: "conditional-select",
+          name: "conditionalSelect",
+          label: "Conditional Select",
+          options: [
+            { label: "Choose", value: "" },
+            {
+              label: "Conditional",
+              value: '!{[["gate",true],"From !{#source}"]}',
+            },
+          ],
+        },
+      ]),
+    );
+  });
+
+  const inactive = await page.evaluate(() =>
+    APP.formHelpers.resolveValueReferences(
+      '!{[["gate",true],"From !{#source}"]}',
+      document.querySelector("#conditional-select"),
+    ),
+  );
+  const malformed = await page.evaluate(() =>
+    APP.formHelpers.resolveValueReferences(
+      '!{[["gate",true],42]}',
+      document.querySelector("#conditional-select"),
+    ),
+  );
+
+  expect(inactive).toBe("");
+  expect(malformed).toBe('!{[["gate",true],42]}');
+
+  await page.locator("#source").fill("case 123");
+  await page.locator("#gate").check();
+  await page.locator("#conditional-select").selectOption({
+    label: "Conditional",
+  });
+  await page.evaluate(() => APP.formHelpers.renderPreview());
+
+  await expect(page.locator("#preview-list")).toContainText("From case 123");
+  expectCleanPage(errors);
+});
+
 test("toggles checkbox wizard containers on change", async ({ page }) => {
   const errors = await openFixture(page);
 

@@ -1086,7 +1086,7 @@ export const APP = {
             if (control.multiple) {
               value = Array.from(control.selectedOptions)
                 .map((option) =>
-                  /!\{#[^}]+\}/.test(option.value)
+                  /!\{(?:#|\[)/.test(option.value)
                     ? this.resolveValueReferences(option.value, control)
                     : option.textContent.trim(),
                 )
@@ -1095,7 +1095,7 @@ export const APP = {
             } else {
               const option = control.selectedOptions[0];
               value = option?.value
-                ? /!\{#[^}]+\}/.test(option.value)
+                ? /!\{(?:#|\[)/.test(option.value)
                   ? this.resolveValueReferences(option.value, control)
                   : option.textContent.trim()
                 : "";
@@ -1170,12 +1170,40 @@ export const APP = {
       get urlInputs() {
         return this.inputs.filter((control) => control.type === "url");
       },
+      // A conditional token uses JSON-safe rule data:
+      // !{[["nameMatcher", test], "text"]}. The text is omitted unless
+      // the dependency passes, then its ordinary !{#id} tokens resolve.
       resolveValueReferences(value, control) {
         if (typeof value !== "string") {
           return value;
         }
 
-        return value.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
+        const conditional = value.replaceAll(
+          /!\{(\[\[(?:"(?:\\.|[^"\\])*")\s*,\s*(?:"(?:\\.|[^"\\])*"|true|false)\]\s*,\s*"(?:\\.|[^"\\])*"\])\}/g,
+          (token, serialized) => {
+            try {
+              const [dependency, text] = JSON.parse(serialized);
+
+              if (
+                !Array.isArray(dependency) ||
+                dependency.length !== 2 ||
+                typeof dependency[0] !== "string" ||
+                !["string", "boolean"].includes(typeof dependency[1]) ||
+                typeof text !== "string"
+              ) {
+                return token;
+              }
+
+              return APP._internals.when([dependency], control.form)
+                ? text
+                : "";
+            } catch {
+              return token;
+            }
+          },
+        );
+
+        return conditional.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
           const source = Array.from(
             control.form?.querySelectorAll("input, select, textarea") ?? [],
           ).find((candidate) => candidate.id === id);
