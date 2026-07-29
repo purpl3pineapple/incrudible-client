@@ -898,12 +898,10 @@ export const APP = {
       },
     },
     when: (dependencies = new Map(), targetForm = APP.form) => {
-      const data = new FormData(targetForm);
-      const controlNames = new Set(
-        Array.from(targetForm?.elements ?? [], ({ name }) => name).filter(
-          Boolean,
-        ),
+      const controls = Array.from(targetForm?.elements ?? []).filter(
+        (control) => control.name && !control.disabled,
       );
+      const controlNames = new Set(controls.map((control) => control.name));
 
       for (const [nameMatcher, test] of dependencies) {
         const names = [...controlNames].filter((name) =>
@@ -917,7 +915,15 @@ export const APP = {
         }
 
         if (
-          !names.some((name) => APP._internals.match(test, data.getAll(name)))
+          !names.some((name) => {
+            const values = controls
+              .filter((control) => control.name === name)
+              .flatMap((control) =>
+                APP._internals.getValue(control, targetForm),
+              );
+
+            return APP._internals.match(test, values);
+          })
         ) {
           return false;
         }
@@ -1085,20 +1091,12 @@ export const APP = {
           } else if (control.tagName === "SELECT") {
             if (control.multiple) {
               value = Array.from(control.selectedOptions)
-                .map((option) =>
-                  /!\{(?:#|\[)/.test(option.value)
-                    ? this.resolveValueReferences(option.value, control)
-                    : option.textContent.trim(),
-                )
+                .map((option) => option.value)
                 .filter(Boolean)
                 .join(", ");
             } else {
               const option = control.selectedOptions[0];
-              value = option?.value
-                ? /!\{(?:#|\[)/.test(option.value)
-                  ? this.resolveValueReferences(option.value, control)
-                  : option.textContent.trim()
-                : "";
+              value = option?.value || "";
             }
           } else {
             value = control.value;
@@ -1309,14 +1307,20 @@ export const APP = {
       },
       syncArticles(targetForm = APP.form) {
         const rules = APP.rules.articleRules;
-        const data = new FormData(targetForm);
         const rule = Object.entries(rules)
           .flatMap(([name, articles]) =>
-            articles.filter(
-              (article) =>
-                APP._internals.match(article.test, data.getAll(name)) &&
-                APP._internals.when(article.when, targetForm),
-            ),
+            articles.filter((article) => {
+              const values = Array.from(targetForm?.elements ?? [])
+                .filter((control) => control.name === name)
+                .flatMap((control) =>
+                  APP._internals.getValue(control, targetForm),
+                );
+
+              return (
+                APP._internals.match(article.test, values) &&
+                APP._internals.when(article.when, targetForm)
+              );
+            }),
           )
           .at(0);
 
@@ -1418,9 +1422,13 @@ export const APP = {
         return control.checked ? [control.value] : [];
       }
 
-      return control.multiple
-        ? new FormData(targetForm).getAll(control.name)
-        : [control.value];
+      if (control instanceof HTMLSelectElement) {
+        return Array.from(control.selectedOptions).map(
+          (option) => option.label.trim() || option.value,
+        );
+      }
+
+      return [control.value];
     },
     match: (test, values) => {
       if (test === undefined) {

@@ -128,6 +128,17 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
             value: "Customer unavailable on !{#review-date}",
           },
         ],
+        wizards: [
+          {
+            test: "Customer unavailable",
+            wizard: {
+              type: "text",
+              id: "outcome-reason",
+              name: "outcomeReason",
+              label: "Outcome Reason",
+            },
+          },
+        ],
       },
       {
         type: "date",
@@ -182,12 +193,15 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
     APP.workflowLabel = "Review";
     APP.rules.alertRules = { urgent: schema[2].alerts };
     APP.rules.modalRules = { urgent: schema[2].modals };
-    APP.rules.wizardRules = { urgent: schema[2].wizards };
+    APP.rules.wizardRules = {
+      outcome: schema[0].wizards,
+      urgent: schema[2].wizards,
+    };
     APP.rules.criteriaRules = { contact: schema[3].criteria };
     APP.rules.footnoteRules = {
       outcome: [
         {
-          test: "Customer unavailable on !{#review-date}",
+          test: "Customer unavailable",
           footnote: "reviewed !{#review-date}",
         },
       ],
@@ -222,9 +236,15 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
   await page
     .locator("#outcome")
     .selectOption({ label: "Customer unavailable" });
+  await expect(page.locator("#outcome-reason")).toBeEnabled();
   await expect(page.locator("#preview-list")).toContainText(
-    "Customer unavailable on 2026-07-27 (reviewed 2026-07-27)",
+    "Customer unavailable on !{#review-date} (reviewed 2026-07-27)",
   );
+  expect(
+    await page
+      .locator("#outcome")
+      .evaluate((control) => new FormData(control.form).get(control.name)),
+  ).toBe("Customer unavailable on !{#review-date}");
   expect(
     await page.locator("#app-form").evaluate((form) => form.checkValidity()),
   ).toBe(true);
