@@ -899,31 +899,35 @@ export const APP = {
     },
     when: (dependencies = new Map(), targetForm = APP.form) => {
       const controls = Array.from(targetForm?.elements ?? []).filter(
-        (control) => control.name && !control.disabled,
+        (control) =>
+          (control instanceof HTMLInputElement ||
+            control instanceof HTMLSelectElement ||
+            control instanceof HTMLTextAreaElement) &&
+          (control.id || control.name) &&
+          !control.disabled,
       );
-      const controlNames = new Set(controls.map((control) => control.name));
 
-      for (const [nameMatcher, test] of dependencies) {
-        const names = [...controlNames].filter((name) =>
-          APP._internals.match(nameMatcher, [name]),
-        );
+      for (const [identifier, test] of dependencies) {
+        const idMatch = controls.find((control) => control.id === identifier);
+        const matches = idMatch
+          ? [idMatch]
+          : controls.filter(
+              (control) =>
+                control.name &&
+                APP._internals.match(identifier, [control.name]),
+            );
 
-        if (!names.length) {
-          console.warn(
-            `Dependency references unknown control "${nameMatcher}"`,
-          );
+        if (!matches.length) {
+          console.warn(`Dependency references unknown control "${identifier}"`);
         }
 
         if (
-          !names.some((name) => {
-            const values = controls
-              .filter((control) => control.name === name)
-              .flatMap((control) =>
-                APP._internals.getValue(control, targetForm),
-              );
-
-            return APP._internals.match(test, values);
-          })
+          !matches.some((control) =>
+            APP._internals.match(
+              test,
+              APP._internals.getValue(control, targetForm),
+            ),
+          )
         ) {
           return false;
         }
@@ -1112,7 +1116,10 @@ export const APP = {
             continue;
           }
 
-          const footnote = APP.rules.footnoteRules[control.name]
+          const footnote = (
+            APP.rules.footnoteRules[control.id] ??
+            APP.rules.footnoteRules[control.name]
+          )
             ?.filter(
               (r) =>
                 APP._internals.match(
@@ -1277,8 +1284,9 @@ export const APP = {
           : APP.rules.alertRules;
 
         targetForm.querySelectorAll(".control-alerts").forEach((container) => {
-          const activeRules = rules[container.dataset.name];
           const control = document.getElementById(container.dataset.controlId);
+          const activeRules =
+            control && (rules[control.id] ?? rules[container.dataset.name]);
 
           if (!activeRules || !control) {
             return;
@@ -1305,15 +1313,15 @@ export const APP = {
       syncModals(e) {
         const target = e?.target;
 
-        if (!target?.name) {
+        if (!target?.id) {
           return;
         }
 
-        const activeRules = (
+        const rules =
           target.form === APP.feedbackForm
             ? APP.rules.feedbackModalRules
-            : APP.rules.modalRules
-        )[target.name];
+            : APP.rules.modalRules;
+        const activeRules = rules[target.id] ?? rules[target.name];
 
         if (!activeRules) {
           return;
@@ -1335,13 +1343,11 @@ export const APP = {
       syncArticles(targetForm = APP.form) {
         const rules = APP.rules.articleRules;
         const rule = Object.entries(rules)
-          .flatMap(([name, articles]) =>
+          .flatMap(([identifier, articles]) =>
             articles.filter((article) => {
-              const values = Array.from(targetForm?.elements ?? [])
-                .filter((control) => control.name === name)
-                .flatMap((control) =>
-                  APP._internals.getValue(control, targetForm),
-                );
+              const values = getRuleTargets(targetForm, identifier).flatMap(
+                (control) => APP._internals.getValue(control, targetForm),
+              );
 
               return (
                 APP._internals.match(article.test, values) &&
@@ -1367,7 +1373,7 @@ export const APP = {
           const controller = getWizardController(fieldset);
           const control = document.getElementById(controller?.htmlFor ?? "");
 
-          if (!control?.name) {
+          if (!control?.id) {
             return;
           }
 
@@ -1375,7 +1381,11 @@ export const APP = {
           const activeRules =
             (targetForm === APP.feedbackForm
               ? APP.rules.feedbackWizardRules
-              : APP.rules.wizardRules)[control.name] || [];
+              : APP.rules.wizardRules)[control.id] ??
+            (targetForm === APP.feedbackForm
+              ? APP.rules.feedbackWizardRules
+              : APP.rules.wizardRules)[control.name] ??
+            [];
 
           const wizards = Array.from(
             fieldset.querySelectorAll(
@@ -1756,13 +1766,20 @@ function getWizardController(fieldset) {
     : fieldset.querySelector(":scope > .form-control");
 }
 
-function getRuleTarget(targetForm, name) {
+function getRuleTargets(targetForm, identifier) {
+  const controls = Array.from(targetForm?.elements ?? []);
+  const idMatch = controls.find((control) => control.id === identifier);
+
+  return idMatch
+    ? [idMatch]
+    : controls.filter((control) => control.name === identifier);
+}
+
+function getRuleTarget(targetForm, identifier) {
   return (
-    Array.from(targetForm?.elements ?? []).find(
-      (control) => control.name === name,
-    ) ??
+    getRuleTargets(targetForm, identifier)[0] ??
     Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-      (element) => element.dataset.name === name,
+      (element) => element.dataset.name === identifier,
     )
   );
 }
@@ -1773,8 +1790,8 @@ function syncAutofills(targetForm) {
       ? APP.rules.feedbackAutofillRules
       : APP.rules.autofillRules;
 
-  Object.entries(rules).forEach(([name, autofills]) => {
-    const target = getRuleTarget(targetForm, name);
+  Object.entries(rules).forEach(([identifier, autofills]) => {
+    const target = getRuleTarget(targetForm, identifier);
     const eligible =
       (target instanceof HTMLInputElement &&
         !["checkbox", "file", "radio"].includes(target.type)) ||
@@ -1804,8 +1821,8 @@ function syncRequisitions(targetForm) {
       ? APP.rules.feedbackRequisitionRules
       : APP.rules.requisitionRules;
 
-  Object.entries(rules).forEach(([name, requisitions]) => {
-    const target = getRuleTarget(targetForm, name);
+  Object.entries(rules).forEach(([identifier, requisitions]) => {
+    const target = getRuleTarget(targetForm, identifier);
 
     if (
       !(
@@ -1827,14 +1844,8 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([name, criteria]) => {
-    const target =
-      Array.from(targetForm?.elements ?? []).find(
-        (control) => control.name === name,
-      ) ??
-      Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-        (element) => element.dataset.name === name,
-      );
+  Object.entries(rules).forEach(([identifier, criteria]) => {
+    const target = getRuleTarget(targetForm, identifier);
     const node =
       target instanceof HTMLFieldSetElement
         ? target

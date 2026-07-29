@@ -287,8 +287,8 @@ test("resolves conditional value references", async ({ page }) => {
   await page.evaluate(() => {
     APP.formControls.replaceChildren(
       APP.renderEntries([
-        { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-        { type: "text", id: "source", name: "source", label: "Source" },
+        { type: "checkbox", id: "gate", label: "Gate" },
+        { type: "text", id: "source", label: "Source" },
         {
           type: "select",
           id: "conditional-select",
@@ -342,6 +342,21 @@ test("resolves conditional value references", async ({ page }) => {
   await page.evaluate(() => APP.formHelpers.renderPreview());
 
   await expect(page.locator("#preview-list")).toContainText("Direct case 123");
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form)].map(([name]) => name)),
+  ).not.toContain("gate");
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form)].map(([name]) => name)),
+  ).not.toContain("source");
+  expect(
+    await page.evaluate(() =>
+      APP.preview.some(([, label]) => ["Gate", "Source"].includes(label)),
+    ),
+  ).toBe(false);
 
   await page.locator("#gate").check();
   await page.locator("#conditional-select").selectOption({
@@ -509,16 +524,16 @@ test("syncs conditional requisitions and autofills", async ({ page }) => {
     ];
 
     APP.rules.requisitionRules = {
-      conditionalNote: [["mode", "Required"]],
+      "conditional-note": [["mode", "Required"]],
     };
     APP.rules.autofillRules = {
-      autofilledNote: [
+      "autofilled-note": [
         { value: "First !{#source}", when: [["mode", "Auto"]] },
         { value: "Ignored", when: [["mode", "Auto"]] },
       ],
-      autofilledSelect: [{ value: "auto", when: [["mode", "Auto"]] }],
-      autofilledTextarea: [{ value: "Ignored", when: [["mode", "Auto"]] }],
-      autofilledCheckbox: [{ value: "true", when: [["mode", "Auto"]] }],
+      "autofilled-select": [{ value: "auto", when: [["mode", "Auto"]] }],
+      "autofilled-textarea": [{ value: "Ignored", when: [["mode", "Auto"]] }],
+      "autofilled-checkbox": [{ value: "true", when: [["mode", "Auto"]] }],
     };
     APP.formControls.replaceChildren(APP.renderEntries(schema));
 
