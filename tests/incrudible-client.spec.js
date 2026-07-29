@@ -297,6 +297,13 @@ test("resolves conditional value references", async ({ page }) => {
   const schema = [
     { type: "checkbox", id: "gate", label: "Gate" },
     { type: "text", id: "source", label: "Source" },
+    { type: "text", id: "id-reference-source", label: "ID Source" },
+    {
+      type: "text",
+      id: "named-reference-source",
+      name: "caseReferenceSource",
+      label: "Named Source",
+    },
     {
       type: "select",
       id: "conditional-select",
@@ -315,6 +322,14 @@ test("resolves conditional value references", async ({ page }) => {
         {
           label: "Single quoted conditional",
           value: "!{[['gate',true],'From !{#source}']}",
+        },
+        {
+          label: "ID regex",
+          value: "ID !{#/^id-reference-/}",
+        },
+        {
+          label: "Name regex",
+          value: "Name !{#/^caseReference/}",
         },
       ],
     },
@@ -399,6 +414,21 @@ test("resolves conditional value references", async ({ page }) => {
 
   await page.locator("#source").fill("");
   await expect(page.locator("#preview-list dd")).toHaveText("From !{#source}");
+
+  await page.locator("#id-reference-source").fill("matched by id");
+  await page.locator("#conditional-select").selectOption({
+    label: "ID regex",
+  });
+  await expect(page.locator("#preview-list dd")).toHaveText("ID matched by id");
+
+  await page.locator("#named-reference-source").fill("matched by name");
+  await page.locator("#conditional-select").selectOption({
+    label: "Name regex",
+  });
+  await expect(page.locator("#preview-list dd").last()).toHaveText(
+    "Name matched by name",
+  );
+  await expect(page.locator("#preview-list")).not.toContainText("!{#");
   expectCleanPage(errors);
 });
 

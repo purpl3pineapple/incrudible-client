@@ -907,18 +907,18 @@ export const APP = {
           !control.disabled,
       );
 
-      for (const [identifier, test] of dependencies) {
-        const idMatch = controls.find((control) => control.id === identifier);
+      for (const [key, test] of dependencies) {
+        const idMatch = controls.find((control) => control.id === key);
         const matches = idMatch
           ? [idMatch]
           : controls.filter(
               (control) =>
                 control.name &&
-                APP._internals.match(identifier, [control.name]),
+                APP._internals.match(key, [control.name]),
             );
 
         if (!matches.length) {
-          console.warn(`Dependency references unknown control "${identifier}"`);
+          console.warn(`Dependency references unknown control "${key}"`);
         }
 
         if (
@@ -1235,13 +1235,20 @@ export const APP = {
           },
         );
 
-        return conditional.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
-          const source = Array.from(
-            control.form?.querySelectorAll("input, select, textarea") ?? [],
-          ).find((candidate) => candidate.id === id);
+        return conditional.replaceAll(
+          /!\{#([^}]+)\}/g,
+          (token, key) => {
+            const source = Array.from(
+              control.form?.querySelectorAll("input, select, textarea") ?? [],
+            ).find((candidate) =>
+              [candidate.id, candidate.name].some(
+                (value) => value && APP._internals.match(key, [value]),
+              ),
+            );
 
-          return source?.value ? source.value : token;
-        });
+            return source?.value ? source.value : token;
+          },
+        );
       },
       renderPreview() {
         const rows = APP.preview;
@@ -1343,9 +1350,9 @@ export const APP = {
       syncArticles(targetForm = APP.form) {
         const rules = APP.rules.articleRules;
         const rule = Object.entries(rules)
-          .flatMap(([identifier, articles]) =>
+          .flatMap(([key, articles]) =>
             articles.filter((article) => {
-              const values = getRuleTargets(targetForm, identifier).flatMap(
+              const values = getRuleTargets(targetForm, key).flatMap(
                 (control) => APP._internals.getValue(control, targetForm),
               );
 
@@ -1766,20 +1773,20 @@ function getWizardController(fieldset) {
     : fieldset.querySelector(":scope > .form-control");
 }
 
-function getRuleTargets(targetForm, identifier) {
+function getRuleTargets(targetForm, key) {
   const controls = Array.from(targetForm?.elements ?? []);
-  const idMatch = controls.find((control) => control.id === identifier);
+  const idMatch = controls.find((control) => control.id === key);
 
   return idMatch
     ? [idMatch]
-    : controls.filter((control) => control.name === identifier);
+    : controls.filter((control) => control.name === key);
 }
 
-function getRuleTarget(targetForm, identifier) {
+function getRuleTarget(targetForm, key) {
   return (
-    getRuleTargets(targetForm, identifier)[0] ??
+    getRuleTargets(targetForm, key)[0] ??
     Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-      (element) => element.dataset.name === identifier,
+      (element) => element.dataset.name === key,
     )
   );
 }
@@ -1790,8 +1797,8 @@ function syncAutofills(targetForm) {
       ? APP.rules.feedbackAutofillRules
       : APP.rules.autofillRules;
 
-  Object.entries(rules).forEach(([identifier, autofills]) => {
-    const target = getRuleTarget(targetForm, identifier);
+  Object.entries(rules).forEach(([key, autofills]) => {
+    const target = getRuleTarget(targetForm, key);
     const eligible =
       (target instanceof HTMLInputElement &&
         !["checkbox", "file", "radio"].includes(target.type)) ||
@@ -1821,8 +1828,8 @@ function syncRequisitions(targetForm) {
       ? APP.rules.feedbackRequisitionRules
       : APP.rules.requisitionRules;
 
-  Object.entries(rules).forEach(([identifier, requisitions]) => {
-    const target = getRuleTarget(targetForm, identifier);
+  Object.entries(rules).forEach(([key, requisitions]) => {
+    const target = getRuleTarget(targetForm, key);
 
     if (
       !(
@@ -1844,8 +1851,8 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([identifier, criteria]) => {
-    const target = getRuleTarget(targetForm, identifier);
+  Object.entries(rules).forEach(([key, criteria]) => {
+    const target = getRuleTarget(targetForm, key);
     const node =
       target instanceof HTMLFieldSetElement
         ? target

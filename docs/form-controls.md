@@ -933,11 +933,13 @@ source control.
 ```
 
 Every token in the original configured string is resolved from a same-form
-control by `id`, so a value can contain more than one reference. An unknown or
-empty source leaves its token unchanged, and injected text is not parsed again.
-Only dropdown, checkbox, and radio values, plus footnotes on any workflow form
-control, are interpolation destinations; referenced controls may be any
-workflow form control. Feedback forms do not interpolate these references.
+control by matching its `id` or `name`. Keys use the same exact-string or
+slash-delimited regular expression syntax as conditional rules, so a value can
+contain more than one reference. An unknown or empty source leaves its token
+unchanged, and injected text is not parsed again. Only dropdown, checkbox, and
+radio values, plus footnotes on any workflow form control, are interpolation
+destinations; referenced controls may be any workflow form control. Feedback
+forms do not interpolate these references.
 
 </details>
 
