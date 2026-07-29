@@ -587,8 +587,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
     const schema = [
       {
         type: "select",
-        id: "choice",
-        name: "choice",
+        id: "reference-choice",
         label: "Choice",
         options: [
           { label: "Choose", value: "" },
@@ -608,7 +607,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
       },
     ];
 
-    APP.rules.wizardRules = { choice: schema[0].wizards };
+    APP.rules.wizardRules = { "reference-choice": schema[0].wizards };
     APP.rules.criteriaRules = {};
     APP.formControls.replaceChildren(APP.renderEntries(schema));
     APP.formHelpers.syncWizards();
@@ -621,12 +620,23 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
   await expect(caller).toHaveAttribute("hidden", "");
   await expect(shell).toHaveCount(0);
 
-  await page.locator("#choice").selectOption("show");
+  await page.locator("#reference-choice").selectOption("show");
   await page.evaluate(() => APP.formHelpers.syncWizards());
   await expect(caller).not.toHaveAttribute("hidden", "");
   await expect(shell).toHaveCount(0);
 
-  await page.locator("#choice").selectOption("");
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form)].map(([name]) => name)),
+  ).not.toContain("reference-choice");
+  expect(
+    await page.evaluate(() =>
+      APP.preview.some(([, label]) => label === "Choice"),
+    ),
+  ).toBe(false);
+
+  await page.locator("#reference-choice").selectOption("");
   await page.evaluate(() => APP.formHelpers.syncWizards());
   await expect(caller).toHaveAttribute("hidden", "");
   await expect(shell).toHaveCount(0);
