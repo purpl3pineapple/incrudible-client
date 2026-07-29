@@ -238,7 +238,7 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
     .selectOption({ label: "Customer unavailable" });
   await expect(page.locator("#outcome-reason")).toBeEnabled();
   await expect(page.locator("#preview-list")).toContainText(
-    "Customer unavailable on !{#review-date} (reviewed 2026-07-27)",
+    "Customer unavailable on 2026-07-27 (reviewed 2026-07-27)",
   );
   expect(
     await page
@@ -509,16 +509,16 @@ test("syncs conditional requisitions and autofills", async ({ page }) => {
     ];
 
     APP.rules.requisitionRules = {
-      conditionalNote: [["mode", "required"]],
+      conditionalNote: [["mode", "Required"]],
     };
     APP.rules.autofillRules = {
       autofilledNote: [
-        { value: "First !{#source}", when: [["mode", "auto"]] },
-        { value: "Ignored", when: [["mode", "auto"]] },
+        { value: "First !{#source}", when: [["mode", "Auto"]] },
+        { value: "Ignored", when: [["mode", "Auto"]] },
       ],
-      autofilledSelect: [{ value: "auto", when: [["mode", "auto"]] }],
-      autofilledTextarea: [{ value: "Ignored", when: [["mode", "auto"]] }],
-      autofilledCheckbox: [{ value: "true", when: [["mode", "auto"]] }],
+      autofilledSelect: [{ value: "auto", when: [["mode", "Auto"]] }],
+      autofilledTextarea: [{ value: "Ignored", when: [["mode", "Auto"]] }],
+      autofilledCheckbox: [{ value: "true", when: [["mode", "Auto"]] }],
     };
     APP.formControls.replaceChildren(APP.renderEntries(schema));
 
@@ -581,7 +581,7 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
         ],
         wizards: [
           {
-            test: "show",
+            test: "Show",
             wizard: {
               type: "checkbox",
               id: "follow-up",
