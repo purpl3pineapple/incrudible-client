@@ -312,6 +312,20 @@ test("resolves conditional value references", async ({ page }) => {
         },
       ]),
     );
+
+    APP.formHelpers.formControls.forEach((control) => {
+      control.addEventListener("input", (event) => {
+        APP.formHelpers.syncWizards(event);
+        APP.formHelpers.renderPreview();
+      });
+      control.addEventListener("change", (event) => {
+        APP.formHelpers.syncWizards(event);
+        APP.formHelpers.renderPreview();
+      });
+    });
+
+    APP.formHelpers.syncWizards();
+    APP.formHelpers.renderPreview();
   });
 
   const inactive = await page.evaluate(() =>
@@ -339,7 +353,6 @@ test("resolves conditional value references", async ({ page }) => {
 
   await page.locator("#source").fill("case 123");
   await page.locator("#conditional-select").selectOption({ label: "Direct" });
-  await page.evaluate(() => APP.formHelpers.renderPreview());
 
   await expect(page.locator("#preview-list")).toContainText("Direct case 123");
   expect(
@@ -362,7 +375,6 @@ test("resolves conditional value references", async ({ page }) => {
   await page.locator("#conditional-select").selectOption({
     label: "Conditional",
   });
-  await page.evaluate(() => APP.formHelpers.renderPreview());
 
   await expect(page.locator("#preview-list")).toContainText("From case 123");
   expect(
@@ -374,7 +386,6 @@ test("resolves conditional value references", async ({ page }) => {
   await page.locator("#conditional-select").selectOption({
     label: "Single quoted conditional",
   });
-  await page.evaluate(() => APP.formHelpers.renderPreview());
 
   await expect(page.locator("#preview-list")).toContainText("From case 123");
   expectCleanPage(errors);
@@ -477,7 +488,6 @@ test("syncs conditional requisitions and autofills", async ({ page }) => {
       {
         type: "select",
         id: "mode",
-        name: "mode",
         label: "Mode",
         options: [
           { label: "Choose", value: "" },
@@ -485,7 +495,7 @@ test("syncs conditional requisitions and autofills", async ({ page }) => {
           { label: "Required", value: "required" },
         ],
       },
-      { type: "text", id: "source", name: "source", label: "Source" },
+      { type: "text", id: "source", label: "Source" },
       {
         type: "text",
         id: "conditional-note",
