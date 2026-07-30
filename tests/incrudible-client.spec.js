@@ -371,10 +371,23 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
   const errors = await openFixture(page);
 
   await page.evaluate(() => {
-    const source = {
+    const nestedSource = {
       type: "date",
+      id: "nested-interpolated",
+      label: "Nested interpolated",
+    };
+    const source = {
+      type: "select",
       id: "interpolated",
       label: "Interpolated",
+      options: [
+        { label: "Choose", value: "" },
+        {
+          label: "nested-label",
+          value: "its wizard interpolates !{#nested-interpolated}",
+        },
+      ],
+      wizards: [{ test: "nested-label", wizard: nestedSource }],
     };
     const destination = {
       type: "select",
@@ -400,6 +413,7 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
     APP.rules.wizardRules = {
       "invoke-interpolator": invoker.wizards,
       interpolator: destination.wizards,
+      interpolated: source.wizards,
     };
     APP.formControls.replaceChildren(APP.renderEntries([invoker]));
 
@@ -420,17 +434,21 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
 
   await expect(page.locator("#interpolator")).toBeHidden();
   await expect(page.locator("#interpolated")).toBeHidden();
+  await expect(page.locator("#nested-interpolated")).toBeHidden();
 
   await page.locator("#invoke-interpolator").check();
   await expect(page.locator("#interpolator")).toBeVisible();
   await page.locator("#interpolator").selectOption({ label: "the-label" });
   await expect(page.locator("#interpolated")).toBeVisible();
   await expect(page.locator("#interpolated")).toBeEnabled();
+  await page.locator("#interpolated").selectOption({ label: "nested-label" });
+  await expect(page.locator("#nested-interpolated")).toBeVisible();
+  await expect(page.locator("#nested-interpolated")).toBeEnabled();
   await expect(page.locator("#preview-list dd")).toHaveText(
-    "Text that interpolates !{#interpolated}",
+    "Text that interpolates its wizard interpolates !{#nested-interpolated}",
   );
 
-  await page.locator("#interpolated").fill("2026-07-30");
+  await page.locator("#nested-interpolated").fill("2026-07-30");
 
   expect(
     await page.evaluate(() =>
@@ -439,9 +457,13 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
         document.createElement("select"),
       ),
     ),
-  ).toBe("Text that interpolates 2026-07-30");
+  ).toBe("Text that interpolates its wizard interpolates 2026-07-30");
   expect(await page.evaluate(() => APP.preview)).toEqual([
-    [undefined, "Entry1", "Text that interpolates 2026-07-30"],
+    [
+      undefined,
+      "Entry1",
+      "Text that interpolates its wizard interpolates 2026-07-30",
+    ],
   ]);
   expect(
     await page
@@ -449,6 +471,9 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
       .evaluate((form) => [...new FormData(form)].map(([name]) => name)),
   ).toEqual(["entry1"]);
   await expect(page.locator("#preview-list")).not.toContainText("Interpolated:");
+  await expect(page.locator("#preview-list")).not.toContainText(
+    "Nested interpolated:",
+  );
   expectCleanPage(errors);
 });
 

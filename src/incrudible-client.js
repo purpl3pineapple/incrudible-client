@@ -1177,7 +1177,7 @@ export const APP = {
       // A conditional token uses quoted rule data:
       // !{[["nameMatcher", test], "text"]}. The text is omitted unless
       // the dependency passes, then its ordinary !{#id} tokens resolve.
-      resolveValueReferences(value, control) {
+      resolveValueReferences(value, control, resolvedIds = new Set()) {
         if (typeof value !== "string") {
           return value;
         }
@@ -1231,9 +1231,19 @@ export const APP = {
         );
 
         return conditional.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
+          if (resolvedIds.has(id)) {
+            return token;
+          }
+
           const source = control.ownerDocument?.getElementById(id);
 
-          return source?.value ? source.value : token;
+          return source?.value
+            ? this.resolveValueReferences(
+                source.value,
+                source,
+                new Set(resolvedIds).add(id),
+              )
+            : token;
         });
       },
       renderPreview() {
