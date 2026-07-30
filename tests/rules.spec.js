@@ -114,6 +114,9 @@ test("skips autofill rules whose dependencies never pass", async ({ page }) => {
         target: [{ value: "filled", when: [["gate", false]] }],
       },
     },
+    // This case is specifically about the rule reapplying mid-edit, which
+    // only happens in an app that syncs on every keystroke.
+    syncOnInput: true,
   });
 
   // gate is unchecked, so the false-test rule matches and fills.
@@ -221,6 +224,115 @@ test("ignores disabled controls when resolving dependencies", async ({
   await page.locator("#outer").uncheck();
   await expect(page.locator("#inner")).toBeDisabled();
   await expect(page.locator("#detail")).toBeHidden();
+  expectCleanPage(errors);
+});
+
+test("re-reveals a chained criteria target in the same sync", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  // Deliberately no extra listeners: APP.init installs a single `change`
+  // handler on the app form, so each interaction triggers exactly one
+  // sync pass. Wiring `input` as well would sync twice and mask an
+  // ordering fault behind the second pass.
+  await page.evaluate(() => {
+    APP.rules.criteriaRules = {
+      // `detail` depends on `gate`, which is itself criteria-gated. Rule
+      // order puts the dependent first, which is what a consumer gets by
+      // authoring rules in schema order.
+      detail: [["gate", true]],
+      gate: [["outer", true]],
+    };
+    APP.formControls.replaceChildren(
+      APP.renderEntries([
+        { type: "checkbox", id: "outer", name: "outer", label: "Outer" },
+        { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+        { type: "text", id: "detail", name: "detail", label: "Detail" },
+      ]),
+    );
+    APP.formHelpers.syncWizards();
+  });
+
+  const gate = page.locator("#gate");
+  const detail = page.locator("#detail");
+
+  await page.locator("#outer").check();
+  await gate.check();
+  await expect(detail).toBeVisible();
+
+  // Collapsing the chain disables `gate`, which correctly hides `detail`.
+  await page.locator("#outer").uncheck();
+  await expect(gate).toBeDisabled();
+  await expect(detail).toBeHidden();
+
+  // Re-opening it must restore `detail` immediately: `gate` is enabled
+  // again and still checked, so the dependency holds.
+  await page.locator("#outer").check();
+  await expect(gate).toBeEnabled();
+  await expect(gate).toBeChecked();
+  await expect(detail).toBeVisible();
+  expectCleanPage(errors);
+});
+
+test("re-reveals a wizard gated by a criteria-controlled dependency", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  // Single-pass wiring again: the library's own change handler only.
+  await page.evaluate(() => {
+    const wizards = [
+      {
+        test: true,
+        when: [["gate", true]],
+        wizard: {
+          type: "text",
+          id: "detail",
+          name: "detail",
+          label: "Detail",
+        },
+      },
+    ];
+
+    APP.rules.criteriaRules = { gate: [["outer", true]] };
+    APP.rules.wizardRules = { trigger: wizards };
+    APP.formControls.replaceChildren(
+      APP.renderEntries([
+        { type: "checkbox", id: "outer", name: "outer", label: "Outer" },
+        { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+        {
+          type: "checkbox",
+          id: "trigger",
+          name: "trigger",
+          label: "Trigger",
+          wizards,
+        },
+      ]),
+    );
+    APP.formHelpers.syncWizards();
+  });
+
+  const gate = page.locator("#gate");
+  const detail = page.locator("#detail");
+
+  await page.locator("#outer").check();
+  await gate.check();
+  await page.locator("#trigger").check();
+  await expect(detail).toBeVisible();
+
+  // Disabling the wizard's dependency collapses it.
+  await page.locator("#outer").uncheck();
+  await expect(gate).toBeDisabled();
+  await expect(detail).toBeHidden();
+
+  // Restoring the dependency must bring the wizard back in this sync —
+  // the wizard pass runs before criteria re-enables `gate`, so this only
+  // holds if both are driven to a fixed point.
+  await page.locator("#outer").check();
+  await expect(gate).toBeEnabled();
+  await expect(gate).toBeChecked();
+  await expect(detail).toBeVisible();
   expectCleanPage(errors);
 });
 

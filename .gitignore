@@ -11,3 +11,4 @@ test-results/
 .coverage-src/
 .nyc_output/
 coverage/
+.vscode/*

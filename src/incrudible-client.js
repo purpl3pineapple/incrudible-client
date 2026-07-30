@@ -44,14 +44,149 @@ export const APP = {
   THEME_STORAGE_KEY,
   RECORDS_STORAGE_KEY: "[incrudible:records]",
 
-  get topnav() {
-    return document.getElementById("topnav");
+  // Namespaced public surfaces, then the private implementation that the
+  // public members above proxy onto.
+  context: {
+    get headingList() {
+      return getHeadingList();
+    },
+    get recordsMessage() {
+      return APP.recordsList?.textContent;
+    },
+    set recordsMessage(text) {
+      APP.parse(APP.recordsList, text);
+    },
   },
-  get topnavToggle() {
-    return document.getElementById("topnav-collapse-toggle");
+  navigator: {
+    selectTab: (id) => {
+      store.dispatch(actions.setSelectedTab(id));
+    },
+  },
+  // Existing consumers assign these properties directly. The stable facade
+  // keeps that API while routing every update through the rules reducer.
+  rules,
+
+  get activeFlowLink() {
+    return this.sidenav?.querySelector("a[data-path].active");
+  },
+  get appAlerts() {
+    return document.getElementById("app-alerts");
+  },
+  get charCount() {
+    return APP.copyText.length;
+  },
+  get closeFeedbackDrawer() {
+    return document.getElementById("close-feedback-drawer");
+  },
+  get closeNotepad() {
+    return document.getElementById("close-notepad");
+  },
+  get confirmModal() {
+    return document.getElementById("confirm-modal");
+  },
+  get confirmModalCancel() {
+    return document.getElementById("confirm-modal-cancel-button");
+  },
+  get confirmModalClose() {
+    return document.getElementById("confirm-modal-close");
+  },
+  get confirmModalConfirm() {
+    return document.getElementById("confirm-modal-confirm-button");
+  },
+  get confirmModalHeader() {
+    return document.getElementById("confirm-modal-header");
+  },
+  get confirmModalMessage() {
+    return document.getElementById("confirm-modal-message");
+  },
+  get copyPreview() {
+    return document.getElementById("copy-preview");
+  },
+  get copyText() {
+    return APP._internals.form.copyText;
   },
   get dropdowns() {
     return Array.from(document.querySelectorAll(".nav-dropdown"));
+  },
+  get feedbackAlerts() {
+    return document.getElementById("feedback-alerts");
+  },
+  get feedbackDrawer() {
+    return document.getElementById("feedback-drawer");
+  },
+  get feedbackForm() {
+    return document.getElementById("feedback-form");
+  },
+  get feedbackFormControls() {
+    return document.getElementById("feedback-form-controls");
+  },
+  get form() {
+    return document.getElementById("app-form");
+  },
+  get formAlerts() {
+    return document.getElementById("form-alerts");
+  },
+  get formControls() {
+    return document.getElementById("form-controls");
+  },
+  get formHelpers() {
+    return APP._internals.form;
+  },
+  get formPreview() {
+    return document.getElementById("form-preview");
+  },
+  get loading() {
+    return store.getState().ui.loading;
+  },
+  set loading(loading) {
+    store.dispatch(actions.setLoading(loading));
+    this.publish(loading ? "overlay:show" : "overlay:hide");
+  },
+  get messageModal() {
+    return document.getElementById("message-modal");
+  },
+  get messageModalClose() {
+    return document.getElementById("message-modal-close");
+  },
+  get messageModalDismiss() {
+    return document.getElementById("message-modal-dismiss-button");
+  },
+  get messageModalHeader() {
+    return document.getElementById("message-modal-header");
+  },
+  get messageModalMessage() {
+    return document.getElementById("message-modal-message");
+  },
+  get notepad() {
+    return document.getElementById("notepad");
+  },
+  get notepadHandle() {
+    return document.getElementById("notepad-handle");
+  },
+  get openFeedbackDrawer() {
+    return document.getElementById("open-feedback-drawer");
+  },
+  get openNotepad() {
+    return document.getElementById("open-notepad");
+  },
+  get overlay() {
+    return document.getElementById("app-overlay");
+  },
+  get preview() {
+    return Object.freeze(
+      APP._internals.form.preview.map((row) => Object.freeze(row)),
+    );
+  },
+  get previewList() {
+    return document.getElementById("preview-list");
+  },
+  // Public proxy onto _internals — third parties (each app's own
+  // Client.html) read this instead of reaching into _internals directly.
+  get records() {
+    return APP._internals.records;
+  },
+  get recordsList() {
+    return document.getElementById("records-list");
   },
   get sidenav() {
     return document.getElementById("sidenav");
@@ -67,132 +202,40 @@ export const APP = {
       ),
     ];
   },
-  get notepad() {
-    return document.getElementById("notepad");
-  },
-  get notepadHandle() {
-    return document.getElementById("notepad-handle");
-  },
-  get closeNotepad() {
-    return document.getElementById("close-notepad");
-  },
-  get openNotepad() {
-    return document.getElementById("open-notepad");
-  },
-  get confirmModal() {
-    return document.getElementById("confirm-modal");
-  },
-  get confirmModalClose() {
-    return document.getElementById("confirm-modal-close");
-  },
-  get confirmModalCancel() {
-    return document.getElementById("confirm-modal-cancel-button");
-  },
-  get confirmModalConfirm() {
-    return document.getElementById("confirm-modal-confirm-button");
-  },
-  get messageModal() {
-    return document.getElementById("message-modal");
-  },
-  get messageModalClose() {
-    return document.getElementById("message-modal-close");
-  },
-  get messageModalDismiss() {
-    return document.getElementById("message-modal-dismiss-button");
-  },
-  get feedbackDrawer() {
-    return document.getElementById("feedback-drawer");
-  },
-  get openFeedbackDrawer() {
-    return document.getElementById("open-feedback-drawer");
-  },
-  get closeFeedbackDrawer() {
-    return document.getElementById("close-feedback-drawer");
-  },
-  get form() {
-    return document.getElementById("app-form");
-  },
-  get feedbackForm() {
-    return document.getElementById("feedback-form");
-  },
-  get feedbackFormControls() {
-    return document.getElementById("feedback-form-controls");
-  },
-  get appAlerts() {
-    return document.getElementById("app-alerts");
-  },
-  get formAlerts() {
-    return document.getElementById("form-alerts");
-  },
-  get feedbackAlerts() {
-    return document.getElementById("feedback-alerts");
-  },
   get tablist() {
     return document.querySelector('[role="tablist"]');
   },
   get tabs() {
     return Array.from(this.tablist?.querySelectorAll('[role="tab"]') ?? []);
   },
-  get formControls() {
-    return document.getElementById("form-controls");
+  get theme() {
+    return store.getState().ui.theme ?? resolvePreferredTheme();
   },
-  get recordsList() {
-    return document.getElementById("records-list");
-  },
-  get overlay() {
-    return document.getElementById("app-overlay");
-  },
-  get formPreview() {
-    return document.getElementById("form-preview");
-  },
-  get previewList() {
-    return document.getElementById("preview-list");
-  },
-  get copyPreview() {
-    return document.getElementById("copy-preview");
-  },
-  get activeFlowLink() {
-    return this.sidenav?.querySelector("a[data-path].active");
-  },
-  get toastContainer() {
-    return document.getElementById("toast-container");
+  set theme(mode) {
+    store.dispatch(actions.setTheme(mode));
   },
   get themeToggle() {
     return document.getElementById("theme-toggle");
   },
-  get messageModalHeader() {
-    return document.getElementById("message-modal-header");
+  get toastContainer() {
+    return document.getElementById("toast-container");
   },
-  get messageModalMessage() {
-    return document.getElementById("message-modal-message");
+  get topnav() {
+    return document.getElementById("topnav");
   },
-  get confirmModalHeader() {
-    return document.getElementById("confirm-modal-header");
+  get topnavToggle() {
+    return document.getElementById("topnav-collapse-toggle");
   },
-  get confirmModalMessage() {
-    return document.getElementById("confirm-modal-message");
-  },
-  get workflowArticle() {
-    return document.getElementById("workflow-article");
-  },
-  get workflowArticleHeader() {
-    return document.getElementById("workflow-article-header");
-  },
-  get workflowArticleFrame() {
-    return document.getElementById("workflow-article-frame");
-  },
+  get values() {
+    const data = APP.form ? new FormData(APP.form) : new FormData();
+    const names = new Set(data.keys());
 
-  // Existing consumers assign these properties directly. The stable facade
-  // keeps that API while routing every update through the rules reducer.
-  rules,
-
-  get workflowLabel() {
-    return store.getState().workflow.label;
+    return Object.freeze(
+      Object.fromEntries(
+        Array.from(names, (name) => [name, Object.freeze(data.getAll(name))]),
+      ),
+    );
   },
-  set workflowLabel(value) {
-    store.dispatch(actions.setWorkflowLabel(value));
-  },
-
   // The active workflow — a rich alert object for queue, a plain label
   // string for static. Each app's own mountWorkflow/resetWorkflow read
   // and write this; it's a real accessor (not a plain data property) so
@@ -203,6 +246,119 @@ export const APP = {
   },
   set workflow(value) {
     store.dispatch(actions.setWorkflow(value));
+  },
+  get workflowArticle() {
+    return document.getElementById("workflow-article");
+  },
+  get workflowArticleFrame() {
+    return document.getElementById("workflow-article-frame");
+  },
+  get workflowArticleHeader() {
+    return document.getElementById("workflow-article-header");
+  },
+  get workflowLabel() {
+    return store.getState().workflow.label;
+  },
+  set workflowLabel(value) {
+    store.dispatch(actions.setWorkflowLabel(value));
+  },
+
+  alert: (key, content) => {
+    const root =
+      key === "app"
+        ? APP.appAlerts
+        : key === "feedback"
+          ? APP.feedbackAlerts
+          : APP.formAlerts;
+    const alerts = root.querySelectorAll(".markdown-alert");
+
+    if (alerts.length >= 2) {
+      alerts[alerts.length - 1].remove();
+    }
+
+    root.insertAdjacentHTML("afterbegin", APP._internals.alertMarkup(content));
+  },
+
+  // Bare <input> builder shared by renderFormControl's labeled-control path
+  // and by list-control entries (which need their own id/name per entry,
+  // so they can't go through renderFormControl/applyShared directly).
+  buildInput: (type, constraints = {}, value, multiple = false) => {
+    const input = document.createElement("input");
+    input.type =
+      type === "currency"
+        ? "text"
+        : type === "datetime"
+          ? "datetime-local"
+          : type === "image"
+            ? "file"
+            : type;
+
+    if (["currency", "number"].includes(type)) {
+      input.dataset.type = type;
+    }
+
+    if (type === "image") {
+      input.accept = "image/*";
+      input.multiple = multiple;
+    }
+
+    if (value != null && type !== "image") {
+      input.defaultValue = value;
+    }
+
+    if (constraints.minLength != null) {
+      input.minLength = constraints.minLength;
+    }
+
+    if (constraints.maxLength != null) {
+      input.maxLength = constraints.maxLength;
+    }
+
+    if (constraints.pattern) {
+      input.pattern = constraints.pattern;
+    }
+
+    if (constraints.min != null) {
+      input.min = constraints.min;
+    }
+
+    if (constraints.max != null) {
+      input.max = constraints.max;
+    }
+
+    return input;
+  },
+
+  confirm: (
+    message,
+    {
+      header = "Confirm Action",
+      confirmText = "OK",
+      cancelText = "Cancel",
+      variant,
+      detail,
+      action,
+    } = {},
+  ) => {
+    APP._internals.prepareModal(
+      APP.confirmModal,
+      APP.confirmModalHeader,
+      APP.confirmModalMessage,
+      { header, message, variant },
+    );
+    APP.confirmModalConfirm.textContent = confirmText;
+    APP.confirmModalCancel.textContent = cancelText;
+
+    if (action) {
+      APP.form.action = action;
+    } else {
+      APP.form.removeAttribute("action");
+    }
+
+    APP._internals.confirmDetail = detail;
+    APP.confirmModal.returnValue = "";
+    APP.confirmModal.showModal();
+    APP.publish("modal:opened");
   },
 
   imageToUpload: (file) => {
@@ -276,54 +432,253 @@ export const APP = {
     setupAppEvents({ onWorkflowLoaded, onAppInit, onRecordsTab });
   },
 
-  // Bare <input> builder shared by renderFormControl's labeled-control path
-  // and by list-control entries (which need their own id/name per entry,
-  // so they can't go through renderFormControl/applyShared directly).
-  buildInput: (type, constraints = {}, value, multiple = false) => {
-    const input = document.createElement("input");
-    input.type =
-      type === "currency"
-        ? "text"
-        : type === "datetime"
-          ? "datetime-local"
-          : type === "image"
-            ? "file"
-            : type;
+  match: (test, values) => {
+    return APP._internals.match(test, values);
+  },
 
-    if (["currency", "number"].includes(type)) {
-      input.dataset.type = type;
+  next: (event, callback) => {
+    return APP._internals.bus.next(event, callback);
+  },
+
+  notify: (
+    message,
+    { header = "Notice", dismissText = "OK", variant } = {},
+  ) => {
+    APP._internals.prepareModal(
+      APP.messageModal,
+      APP.messageModalHeader,
+      APP.messageModalMessage,
+      { header, message, variant },
+    );
+    APP.messageModalDismiss.textContent = dismissText;
+    APP.messageModal.showModal();
+    APP.publish("modal:opened");
+  },
+
+  parse: (root, markdown) => {
+    root.innerHTML = marked.parse(markdown);
+
+    for (let l = 1; l <= 6; l++) {
+      root.querySelectorAll(`h${l}[id]`).forEach((heading) => {
+        heading.id = `${root.id}-${heading.id}`;
+      });
+    }
+  },
+
+  publish: (event, payload) => {
+    APP._internals.bus.publish(event, payload);
+  },
+
+  renderControlAlerts: (entry) => {
+    const container = document.createElement("div");
+    container.className = "control-alerts";
+    container.dataset.controlId = entry.id;
+    return container;
+  },
+
+  renderDatalist: (entry) => {
+    const datalist = document.createElement("datalist");
+    datalist.id = `${entry.id}-list`;
+
+    entry.list.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item;
+      datalist.append(option);
+    });
+
+    return datalist;
+  },
+
+  renderEntries: (entries) => {
+    const fragment = document.createDocumentFragment();
+    fragment.append(...entries.map((entry) => APP.renderEntry(entry)));
+    return fragment;
+  },
+
+  renderEntry: (entry, rule) => {
+    if (entry.type === "list" || entry.type.startsWith("list:")) {
+      const itemType = entry.type === "list" ? "text" : entry.type.slice(5);
+      const v = entry.constraints || {};
+
+      const fieldset = document.createElement("fieldset");
+      fieldset.className = `list w-${entry.width || 1}`;
+      fieldset.id = entry.id;
+
+      if (entry.name) {
+        fieldset.dataset.name = entry.name;
+      }
+
+      if (itemType !== "text") {
+        fieldset.dataset.type = itemType;
+      }
+
+      if (entry.disabled) {
+        fieldset.disabled = true;
+      }
+
+      if (rule) {
+        fieldset.hidden = true;
+      }
+
+      if (v.required) {
+        fieldset.dataset.required = "true";
+      }
+
+      if (v.minLength != null) {
+        fieldset.dataset.minLength = v.minLength;
+      }
+
+      if (v.maxLength != null) {
+        fieldset.dataset.maxLength = v.maxLength;
+      }
+
+      if (v.pattern) {
+        fieldset.dataset.pattern = v.pattern;
+      }
+
+      if (v.min != null) {
+        fieldset.dataset.min = v.min;
+      }
+
+      if (v.max != null) {
+        fieldset.dataset.max = v.max;
+      }
+
+      const label = document.createElement("label");
+      label.className = "form-control";
+
+      const toolbar = createLabelToolbar(entry);
+
+      const list = document.createElement("ul");
+
+      // Builds one entry <li>. Reused for the always-present first entry
+      // (not removable) and for every entry the "Add" button creates
+      // later (removable) - both need the exact same input construction,
+      // just closing over this one render's entry/itemType/v rather than
+      // round-tripping through the fieldset's dataset.
+      const buildEntry = (index, removable) => {
+        const entryLi = document.createElement("li");
+
+        const input = APP.buildInput(itemType, v);
+        input.id = `${entry.id}-${index}`;
+
+        if (entry.name) {
+          input.name = `${entry.name}_${index}`;
+        }
+
+        input.required = Boolean(v.required);
+        entryLi.append(input);
+
+        if (removable) {
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className = "list-remove";
+          removeButton.setAttribute("aria-label", "Remove");
+          removeButton.textContent = "×";
+          removeButton.addEventListener("click", () => {
+            entryLi.remove();
+            fieldset.dispatchEvent(new CustomEvent("item-removed"));
+          });
+          entryLi.append(removeButton);
+        }
+
+        return entryLi;
+      };
+
+      const addButton = document.createElement("button");
+      addButton.type = "button";
+      addButton.className = "list-add";
+      addButton.textContent = "+ Add";
+      addButton.addEventListener("click", () => {
+        list.append(buildEntry(list.querySelectorAll("li").length, true));
+      });
+      toolbar.append(addButton);
+
+      label.append(toolbar);
+      list.append(buildEntry(0, false));
+
+      fieldset.addEventListener("item-removed", () => {
+        list.querySelectorAll("li").forEach((entryLi, index) => {
+          const input = entryLi.querySelector("input");
+          input.id = `${entry.id}-${index}`;
+
+          if (entry.name) {
+            input.name = `${entry.name}_${index}`;
+          }
+        });
+      });
+
+      fieldset.append(label, list);
+
+      return fieldset;
     }
 
-    if (type === "image") {
-      input.accept = "image/*";
-      input.multiple = multiple;
+    if (entry.type === "fieldset") {
+      const fieldset = document.createElement("fieldset");
+
+      if (entry.id) {
+        fieldset.id = entry.id;
+      }
+
+      if (entry.disabled) {
+        fieldset.disabled = true;
+      }
+
+      const legend = document.createElement("legend");
+      legend.innerHTML = entry.label;
+
+      fieldset.append(
+        legend,
+        ...entry.members.map((member) => APP.renderEntry(member)),
+      );
+
+      return fieldset;
     }
 
-    if (value != null && type !== "image") {
-      input.defaultValue = value;
+    if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
+      return APP.renderFormControl(entry, rule);
     }
 
-    if (constraints.minLength != null) {
-      input.minLength = constraints.minLength;
+    const fieldset = document.createElement("fieldset");
+    fieldset.dataset.type = entry.type;
+
+    if (rule) {
+      fieldset.hidden = true;
     }
 
-    if (constraints.maxLength != null) {
-      input.maxLength = constraints.maxLength;
+    const children = (entry.wizards || []).map((r) =>
+      // checkbox/radio wizard items may be bare (shown while checked) or
+      // wrapped as {wizard, test} with an explicit boolean test
+      APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
+    );
+
+    // A checkbox/radio controller never gets its own box regardless of
+    // nesting (see the :has(input[type=checkbox],[type=radio]) rule),
+    // so unlike other control types there's no double-boxing to avoid
+    // by nesting it inside the fieldset - and rendering it as a
+    // preceding sibling instead means the fieldset's own boxed "shell"
+    // can be hidden entirely while nothing is currently eligible to
+    // reveal (see the dataset.type check in syncWizards below), without
+    // also hiding the controller itself.
+    if (["checkbox", "radio"].includes(entry.type)) {
+      fieldset.className = "wizard w-1";
+      fieldset.hidden = true;
+      fieldset.append(...children);
+
+      const controller = APP.renderFormControl(entry);
+      const group = document.createDocumentFragment();
+      group.append(controller, fieldset);
+
+      return group;
     }
 
-    if (constraints.pattern) {
-      input.pattern = constraints.pattern;
-    }
+    fieldset.className = `wizard w-${entry.width || 1}`;
+    fieldset.append(
+      APP.renderFormControl(Object.assign({}, entry, { width: 1 })),
+      ...children,
+    );
 
-    if (constraints.min != null) {
-      input.min = constraints.min;
-    }
-
-    if (constraints.max != null) {
-      input.max = constraints.max;
-    }
-
-    return input;
+    return fieldset;
   },
 
   renderFormControl: (entry, rule) => {
@@ -541,227 +896,6 @@ export const APP = {
     return label;
   },
 
-  renderControlAlerts: (entry) => {
-    const container = document.createElement("div");
-    container.className = "control-alerts";
-    container.dataset.controlId = entry.id;
-    return container;
-  },
-
-  renderDatalist: (entry) => {
-    const datalist = document.createElement("datalist");
-    datalist.id = `${entry.id}-list`;
-
-    entry.list.forEach((item) => {
-      const option = document.createElement("option");
-      option.value = item;
-      datalist.append(option);
-    });
-
-    return datalist;
-  },
-
-  renderEntry: (entry, rule) => {
-    if (entry.type === "list" || entry.type.startsWith("list:")) {
-      const itemType = entry.type === "list" ? "text" : entry.type.slice(5);
-      const v = entry.constraints || {};
-
-      const fieldset = document.createElement("fieldset");
-      fieldset.className = `list w-${entry.width || 1}`;
-      fieldset.id = entry.id;
-
-      if (entry.name) {
-        fieldset.dataset.name = entry.name;
-      }
-
-      if (itemType !== "text") {
-        fieldset.dataset.type = itemType;
-      }
-
-      if (entry.disabled) {
-        fieldset.disabled = true;
-      }
-
-      if (rule) {
-        fieldset.hidden = true;
-      }
-
-      if (v.required) {
-        fieldset.dataset.required = "true";
-      }
-
-      if (v.minLength != null) {
-        fieldset.dataset.minLength = v.minLength;
-      }
-
-      if (v.maxLength != null) {
-        fieldset.dataset.maxLength = v.maxLength;
-      }
-
-      if (v.pattern) {
-        fieldset.dataset.pattern = v.pattern;
-      }
-
-      if (v.min != null) {
-        fieldset.dataset.min = v.min;
-      }
-
-      if (v.max != null) {
-        fieldset.dataset.max = v.max;
-      }
-
-      const label = document.createElement("label");
-      label.className = "form-control";
-
-      const toolbar = createLabelToolbar(entry);
-
-      const list = document.createElement("ul");
-
-      // Builds one entry <li>. Reused for the always-present first entry
-      // (not removable) and for every entry the "Add" button creates
-      // later (removable) - both need the exact same input construction,
-      // just closing over this one render's entry/itemType/v rather than
-      // round-tripping through the fieldset's dataset.
-      const buildEntry = (index, removable) => {
-        const entryLi = document.createElement("li");
-
-        const input = APP.buildInput(itemType, v);
-        input.id = `${entry.id}-${index}`;
-
-        if (entry.name) {
-          input.name = `${entry.name}_${index}`;
-        }
-
-        input.required = Boolean(v.required);
-        entryLi.append(input);
-
-        if (removable) {
-          const removeButton = document.createElement("button");
-          removeButton.type = "button";
-          removeButton.className = "list-remove";
-          removeButton.setAttribute("aria-label", "Remove");
-          removeButton.textContent = "×";
-          removeButton.addEventListener("click", () => {
-            entryLi.remove();
-            fieldset.dispatchEvent(new CustomEvent("item-removed"));
-          });
-          entryLi.append(removeButton);
-        }
-
-        return entryLi;
-      };
-
-      const addButton = document.createElement("button");
-      addButton.type = "button";
-      addButton.className = "list-add";
-      addButton.textContent = "+ Add";
-      addButton.addEventListener("click", () => {
-        list.append(buildEntry(list.querySelectorAll("li").length, true));
-      });
-      toolbar.append(addButton);
-
-      label.append(toolbar);
-      list.append(buildEntry(0, false));
-
-      fieldset.addEventListener("item-removed", () => {
-        list.querySelectorAll("li").forEach((entryLi, index) => {
-          const input = entryLi.querySelector("input");
-          input.id = `${entry.id}-${index}`;
-
-          if (entry.name) {
-            input.name = `${entry.name}_${index}`;
-          }
-        });
-      });
-
-      fieldset.append(label, list);
-
-      return fieldset;
-    }
-
-    if (entry.type === "fieldset") {
-      const fieldset = document.createElement("fieldset");
-
-      if (entry.id) {
-        fieldset.id = entry.id;
-      }
-
-      if (entry.disabled) {
-        fieldset.disabled = true;
-      }
-
-      const legend = document.createElement("legend");
-      legend.innerHTML = entry.label;
-
-      fieldset.append(
-        legend,
-        ...entry.members.map((member) => APP.renderEntry(member)),
-      );
-
-      return fieldset;
-    }
-
-    if (!(entry.wizards && entry.wizards.length && entry.type !== "textarea")) {
-      return APP.renderFormControl(entry, rule);
-    }
-
-    const fieldset = document.createElement("fieldset");
-    fieldset.dataset.type = entry.type;
-
-    if (rule) {
-      fieldset.hidden = true;
-    }
-
-    const children = (entry.wizards || []).map((r) =>
-      // checkbox/radio wizard items may be bare (shown while checked) or
-      // wrapped as {wizard, test} with an explicit boolean test
-      APP.renderEntry(r.wizard || r, r.wizard ? r : {}),
-    );
-
-    // A checkbox/radio controller never gets its own box regardless of
-    // nesting (see the :has(input[type=checkbox],[type=radio]) rule),
-    // so unlike other control types there's no double-boxing to avoid
-    // by nesting it inside the fieldset - and rendering it as a
-    // preceding sibling instead means the fieldset's own boxed "shell"
-    // can be hidden entirely while nothing is currently eligible to
-    // reveal (see the dataset.type check in syncWizards below), without
-    // also hiding the controller itself.
-    if (["checkbox", "radio"].includes(entry.type)) {
-      fieldset.className = "wizard w-1";
-      fieldset.hidden = true;
-      fieldset.append(...children);
-
-      const controller = APP.renderFormControl(entry);
-      const group = document.createDocumentFragment();
-      group.append(controller, fieldset);
-
-      return group;
-    }
-
-    fieldset.className = `wizard w-${entry.width || 1}`;
-    fieldset.append(
-      APP.renderFormControl(Object.assign({}, entry, { width: 1 })),
-      ...children,
-    );
-
-    return fieldset;
-  },
-
-  renderEntries: (entries) => {
-    const fragment = document.createDocumentFragment();
-    fragment.append(...entries.map((entry) => APP.renderEntry(entry)));
-    return fragment;
-  },
-
-  // Records persist across browser restarts, but only for the current
-  // calendar day (America/New_York, matching the submitted-at display) —
-  // a fresh day starts a fresh collection rather than showing stale rows.
-  today: () => {
-    return new Date().toLocaleDateString("en-CA", {
-      timeZone: "America/New_York",
-    });
-  },
-
   // Shared google.script.run envelope: overlay toggle, { success, data,
   // error } unwrap, and a `${prefix}${message}` toast on either failure path.
   runServer: (
@@ -808,6 +942,51 @@ export const APP = {
       [method](...args);
   },
 
+  showModal: (modal) => {
+    return APP._internals.showModal(modal);
+  },
+
+  subscribe: (event, callback) => {
+    return APP._internals.bus.subscribe(event, callback);
+  },
+
+  syncFeedbackRecords: () => {
+    APP._internals.feedback.syncRecords();
+  },
+
+  toast: (message, variant = "note") => {
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${variant} open`;
+    toast.setAttribute("role", "status");
+
+    const icon = document.createElement("i");
+    icon.className = "toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+
+    const text = document.createElement("span");
+    text.textContent = message;
+
+    toast.append(icon, text);
+    APP.toastContainer.append(toast);
+    APP.toastContainer.classList.add("open");
+
+    setTimeout(() => {
+      toast.remove();
+      if (!APP.toastContainer.childElementCount) {
+        APP.toastContainer.classList.remove("open");
+      }
+    }, 3000);
+  },
+
+  // Records persist across browser restarts, but only for the current
+  // calendar day (America/New_York, matching the submitted-at display) —
+  // a fresh day starts a fresh collection rather than showing stale rows.
+  today: () => {
+    return new Date().toLocaleDateString("en-CA", {
+      timeZone: "America/New_York",
+    });
+  },
+
   toggleDropdown: (target, open = undefined) => {
     const opened = target.classList.toggle("open", open);
 
@@ -816,6 +995,10 @@ export const APP = {
       ?.setAttribute("aria-expanded", opened ? "true" : "false");
 
     return opened;
+  },
+
+  unsubscribe: (event, callback) => {
+    APP._internals.bus.unsubscribe(event, callback);
   },
 
   _internals: {
@@ -837,6 +1020,145 @@ export const APP = {
     },
     set workflow(value) {
       store.dispatch(actions.setWorkflow(value));
+    },
+    alertMarkup: ({ variant, message }) =>
+      marked.parse(
+        `> [!${variant.toUpperCase()}]\n> ${message.replaceAll("\n", "\n> ")}`,
+      ),
+    getValue: (control, targetForm = APP.form) => {
+      if (["checkbox", "radio"].includes(control.type)) {
+        return control.checked ? [control.value] : [];
+      }
+
+      if (control instanceof HTMLSelectElement) {
+        return Array.from(control.selectedOptions).map(
+          (option) => option.label.trim() || option.value,
+        );
+      }
+
+      return [control.value];
+    },
+    hideArticle: () => {
+      APP.workflowArticleFrame?.removeAttribute("src");
+      APP.workflowArticle?.setAttribute("hidden", "");
+    },
+    match: (test, values) => {
+      if (test === undefined) {
+        return values.length > 0;
+      }
+
+      if (typeof test === "boolean") {
+        return values.length > 0 === test;
+      }
+
+      const match = /^\/(.*)\/([a-z]*)$/.exec(test);
+
+      return values.some((v) =>
+        match ? new RegExp(match[1], match[2]).test(v) : v === test,
+      );
+    },
+    prepareModal: (dialog, headerElement, messageElement, content) => {
+      const { header, message, variant } = content;
+      headerElement.innerHTML = marked.parseInline(header);
+      APP.parse(messageElement, message);
+
+      for (const name of ["note", "tip", "important", "warning", "caution"]) {
+        dialog.classList.toggle(`modal-${name}`, name === variant);
+      }
+    },
+    showArticle: ({ header = "Additional workflow", resource = {} } = {}) => {
+      if (typeof resource.id !== "string" || !resource.id.trim()) {
+        return false;
+      }
+
+      const id = resource.id.trim();
+      let src;
+
+      switch (resource.type) {
+        case "doc": {
+          src = `https://docs.google.com/document/d/${id}/preview`;
+          break;
+        }
+        case "form": {
+          src = `https://docs.google.com/forms/d/e/${id}/viewform?embedded=true`;
+          break;
+        }
+        case "pdf": {
+          src = `https://drive.google.com/file/d/${id}/preview`;
+          break;
+        }
+        default: {
+          return false;
+        }
+      }
+
+      if (
+        !APP.workflowArticle ||
+        !APP.workflowArticleHeader ||
+        !APP.workflowArticleFrame
+      ) {
+        return false;
+      }
+
+      APP.workflowArticleHeader.innerHTML = marked.parseInline(header);
+      APP.workflowArticleFrame.title =
+        APP.workflowArticleHeader.textContent || "Workflow";
+
+      if (APP.workflowArticleFrame.getAttribute("src") !== src) {
+        APP.workflowArticleFrame.src = src;
+      }
+
+      APP.workflowArticle.hidden = false;
+      return true;
+    },
+    showModal: (modal) => {
+      if (modal?.type === "message") {
+        APP.notify(modal.message, modal);
+      } else if (modal?.type === "confirm") {
+        APP.confirm(modal.message, modal);
+      } else {
+        return false;
+      }
+
+      return true;
+    },
+    when: (dependencies = new Map(), targetForm = APP.form) => {
+      const controls = Array.from(targetForm?.elements ?? []).filter(
+        (control) => (control.id || control.name) && !control.disabled,
+      );
+      const controlNames = new Set(controls.map((control) => control.name));
+
+      for (const [key, test] of dependencies) {
+        const idMatch = controls.find((control) => control.id === key);
+        const names = [...controlNames].filter((name) =>
+          name && APP._internals.match(key, [name]),
+        );
+
+        if (!idMatch && !names.length) {
+          console.warn(`Dependency references unknown control "${key}"`);
+        }
+
+        if (
+          !(idMatch
+            ? APP._internals.match(
+                test,
+                APP._internals.getValue(idMatch, targetForm),
+              )
+            : names.some((name) => {
+                const values = controls
+                  .filter((control) => control.name === name)
+                  .flatMap((control) =>
+                    APP._internals.getValue(control, targetForm),
+                  );
+
+                return APP._internals.match(test, values);
+              }))
+        ) {
+          return false;
+        }
+      }
+
+      return true;
     },
     bus: {
       _handlers: new Map(),
@@ -891,44 +1213,6 @@ export const APP = {
           this._handlers.delete(event);
         }
       },
-    },
-    when: (dependencies = new Map(), targetForm = APP.form) => {
-      const controls = Array.from(targetForm?.elements ?? []).filter(
-        (control) => (control.id || control.name) && !control.disabled,
-      );
-      const controlNames = new Set(controls.map((control) => control.name));
-
-      for (const [key, test] of dependencies) {
-        const idMatch = controls.find((control) => control.id === key);
-        const names = [...controlNames].filter((name) =>
-          name && APP._internals.match(key, [name]),
-        );
-
-        if (!idMatch && !names.length) {
-          console.warn(`Dependency references unknown control "${key}"`);
-        }
-
-        if (
-          !(idMatch
-            ? APP._internals.match(
-                test,
-                APP._internals.getValue(idMatch, targetForm),
-              )
-            : names.some((name) => {
-                const values = controls
-                  .filter((control) => control.name === name)
-                  .flatMap((control) =>
-                    APP._internals.getValue(control, targetForm),
-                  );
-
-                return APP._internals.match(test, values);
-              }))
-        ) {
-          return false;
-        }
-      }
-
-      return true;
     },
     feedback: {
       get records() {
@@ -1377,9 +1661,10 @@ export const APP = {
           const control = document.getElementById(controller?.htmlFor ?? "");
 
           if (!(control?.id || control?.name)) {
-            return;
+            return false;
           }
 
+          let changed = false;
           const values = APP._internals.getValue(control, targetForm);
           const rules =
             targetForm === APP.feedbackForm
@@ -1413,6 +1698,10 @@ export const APP = {
               APP._internals.match(rule.test, values) &&
               APP._internals.when(rule.when, targetForm);
 
+            if (wizard.hidden !== !show) {
+              changed = true;
+            }
+
             wizard.hidden = !show;
 
             if (wizard instanceof HTMLFieldSetElement) {
@@ -1425,7 +1714,7 @@ export const APP = {
           });
 
           if (!external) {
-            return;
+            return changed;
           }
 
           // Nothing eligible to reveal right now: collapse (and disable,
@@ -1440,296 +1729,119 @@ export const APP = {
               APP._internals.match(rule.test, values) &&
               APP._internals.when(rule.when, targetForm),
           );
+          if (fieldset.hidden !== !anyShown) {
+            changed = true;
+          }
+
           fieldset.hidden = !anyShown;
           fieldset.disabled = !anyShown;
+
+          return changed;
         };
 
         const wizards = Array.from(
           targetForm?.querySelectorAll("fieldset.wizard") ?? [],
         );
 
-        wizards.forEach(syncFieldset);
-        syncCriteria(targetForm);
+        // Wizard visibility and criteria visibility both read the
+        // `disabled` state the other one writes, so running each once in a
+        // fixed order leaves whichever ran first deciding on state the
+        // other had not corrected yet — the result then depended on rule
+        // authoring order and only settled on some later, unrelated event.
+        // Run both to a fixed point instead. A dependency chain spanning
+        // W wizards and C criteria rules needs at most W + C passes to
+        // propagate plus one to confirm; the bound also stops mutually
+        // contradictory rules from spinning.
+        const criteriaCount = Object.keys(
+          targetForm === APP.feedbackForm
+            ? APP.rules.feedbackCriteriaRules
+            : APP.rules.criteriaRules,
+        ).length;
+        const limit = wizards.length + criteriaCount + 1;
+
+        for (let pass = 0; pass <= limit; pass++) {
+          let changed = false;
+
+          for (const fieldset of wizards) {
+            if (syncFieldset(fieldset)) {
+              changed = true;
+            }
+          }
+
+          if (syncCriteria(targetForm)) {
+            changed = true;
+          }
+
+          if (!changed) {
+            break;
+          }
+        }
+
         syncAutofills(targetForm);
         syncRequisitions(targetForm);
       },
     },
-    getValue: (control, targetForm = APP.form) => {
-      if (["checkbox", "radio"].includes(control.type)) {
-        return control.checked ? [control.value] : [];
-      }
-
-      if (control instanceof HTMLSelectElement) {
-        return Array.from(control.selectedOptions).map(
-          (option) => option.label.trim() || option.value,
-        );
-      }
-
-      return [control.value];
-    },
-    match: (test, values) => {
-      if (test === undefined) {
-        return values.length > 0;
-      }
-
-      if (typeof test === "boolean") {
-        return values.length > 0 === test;
-      }
-
-      const match = /^\/(.*)\/([a-z]*)$/.exec(test);
-
-      return values.some((v) =>
-        match ? new RegExp(match[1], match[2]).test(v) : v === test,
-      );
-    },
-    alertMarkup: ({ variant, message }) =>
-      marked.parse(
-        `> [!${variant.toUpperCase()}]\n> ${message.replaceAll("\n", "\n> ")}`,
-      ),
-    prepareModal: (dialog, headerElement, messageElement, content) => {
-      const { header, message, variant } = content;
-      headerElement.innerHTML = marked.parseInline(header);
-      APP.parse(messageElement, message);
-
-      for (const name of ["note", "tip", "important", "warning", "caution"]) {
-        dialog.classList.toggle(`modal-${name}`, name === variant);
-      }
-    },
-    showModal: (modal) => {
-      if (modal?.type === "message") {
-        APP.notify(modal.message, modal);
-      } else if (modal?.type === "confirm") {
-        APP.confirm(modal.message, modal);
-      } else {
-        return false;
-      }
-
-      return true;
-    },
-    hideArticle: () => {
-      APP.workflowArticleFrame?.removeAttribute("src");
-      APP.workflowArticle?.setAttribute("hidden", "");
-    },
-    showArticle: ({ header = "Additional workflow", resource = {} } = {}) => {
-      if (typeof resource.id !== "string" || !resource.id.trim()) {
-        return false;
-      }
-
-      const id = resource.id.trim();
-      let src;
-
-      switch (resource.type) {
-        case "doc": {
-          src = `https://docs.google.com/document/d/${id}/preview`;
-          break;
-        }
-        case "form": {
-          src = `https://docs.google.com/forms/d/e/${id}/viewform?embedded=true`;
-          break;
-        }
-        case "pdf": {
-          src = `https://drive.google.com/file/d/${id}/preview`;
-          break;
-        }
-        default: {
-          return false;
-        }
-      }
-
-      if (
-        !APP.workflowArticle ||
-        !APP.workflowArticleHeader ||
-        !APP.workflowArticleFrame
-      ) {
-        return false;
-      }
-
-      APP.workflowArticleHeader.innerHTML = marked.parseInline(header);
-      APP.workflowArticleFrame.title =
-        APP.workflowArticleHeader.textContent || "Workflow";
-
-      if (APP.workflowArticleFrame.getAttribute("src") !== src) {
-        APP.workflowArticleFrame.src = src;
-      }
-
-      APP.workflowArticle.hidden = false;
-      return true;
-    },
-  },
-
-  // Public proxies onto _internals — third parties (each app's own
-  // Client.html) call these instead of reaching into _internals directly.
-  get records() {
-    return APP._internals.records;
-  },
-  syncFeedbackRecords: () => {
-    APP._internals.feedback.syncRecords();
-  },
-  showModal: (modal) => {
-    return APP._internals.showModal(modal);
-  },
-  match: (test, values) => {
-    return APP._internals.match(test, values);
-  },
-  get values() {
-    const data = APP.form ? new FormData(APP.form) : new FormData();
-    const names = new Set(data.keys());
-
-    return Object.freeze(
-      Object.fromEntries(
-        Array.from(names, (name) => [name, Object.freeze(data.getAll(name))]),
-      ),
-    );
-  },
-  get preview() {
-    return Object.freeze(
-      APP._internals.form.preview.map((row) => Object.freeze(row)),
-    );
-  },
-  get copyText() {
-    return APP._internals.form.copyText;
-  },
-  get charCount() {
-    return APP.copyText.length;
-  },
-  get formHelpers() {
-    return APP._internals.form;
-  },
-
-  context: {
-    get recordsMessage() {
-      return APP.recordsList?.textContent;
-    },
-    set recordsMessage(text) {
-      APP.parse(APP.recordsList, text);
-    },
-    get headingList() {
-      return getHeadingList();
-    },
-  },
-  navigator: {
-    selectTab: (id) => {
-      store.dispatch(actions.setSelectedTab(id));
-    },
-  },
-  get loading() {
-    return store.getState().ui.loading;
-  },
-  set loading(loading) {
-    store.dispatch(actions.setLoading(loading));
-    this.publish(loading ? "overlay:show" : "overlay:hide");
-  },
-  get theme() {
-    return store.getState().ui.theme ?? resolvePreferredTheme();
-  },
-  set theme(mode) {
-    store.dispatch(actions.setTheme(mode));
-  },
-  alert: (key, content) => {
-    const root =
-      key === "app"
-        ? APP.appAlerts
-        : key === "feedback"
-          ? APP.feedbackAlerts
-          : APP.formAlerts;
-    const alerts = root.querySelectorAll(".markdown-alert");
-
-    if (alerts.length >= 2) {
-      alerts[alerts.length - 1].remove();
-    }
-
-    root.insertAdjacentHTML("afterbegin", APP._internals.alertMarkup(content));
-  },
-  confirm: (
-    message,
-    {
-      header = "Confirm Action",
-      confirmText = "OK",
-      cancelText = "Cancel",
-      variant,
-      detail,
-      action,
-    } = {},
-  ) => {
-    APP._internals.prepareModal(
-      APP.confirmModal,
-      APP.confirmModalHeader,
-      APP.confirmModalMessage,
-      { header, message, variant },
-    );
-    APP.confirmModalConfirm.textContent = confirmText;
-    APP.confirmModalCancel.textContent = cancelText;
-
-    if (action) {
-      APP.form.action = action;
-    } else {
-      APP.form.removeAttribute("action");
-    }
-
-    APP._internals.confirmDetail = detail;
-    APP.confirmModal.returnValue = "";
-    APP.confirmModal.showModal();
-    APP.publish("modal:opened");
-  },
-  next: (event, callback) => {
-    return APP._internals.bus.next(event, callback);
-  },
-  notify: (
-    message,
-    { header = "Notice", dismissText = "OK", variant } = {},
-  ) => {
-    APP._internals.prepareModal(
-      APP.messageModal,
-      APP.messageModalHeader,
-      APP.messageModalMessage,
-      { header, message, variant },
-    );
-    APP.messageModalDismiss.textContent = dismissText;
-    APP.messageModal.showModal();
-    APP.publish("modal:opened");
-  },
-  parse: (root, markdown) => {
-    root.innerHTML = marked.parse(markdown);
-
-    for (let l = 1; l <= 6; l++) {
-      root.querySelectorAll(`h${l}[id]`).forEach((heading) => {
-        heading.id = `${root.id}-${heading.id}`;
-      });
-    }
-  },
-  publish: (event, payload) => {
-    APP._internals.bus.publish(event, payload);
-  },
-  subscribe: (event, callback) => {
-    return APP._internals.bus.subscribe(event, callback);
-  },
-  toast: (message, variant = "note") => {
-    const toast = document.createElement("div");
-    toast.className = `toast toast-${variant} open`;
-    toast.setAttribute("role", "status");
-
-    const icon = document.createElement("i");
-    icon.className = "toast-icon";
-    icon.setAttribute("aria-hidden", "true");
-
-    const text = document.createElement("span");
-    text.textContent = message;
-
-    toast.append(icon, text);
-    APP.toastContainer.append(toast);
-    APP.toastContainer.classList.add("open");
-
-    setTimeout(() => {
-      toast.remove();
-      if (!APP.toastContainer.childElementCount) {
-        APP.toastContainer.classList.remove("open");
-      }
-    }, 3000);
-  },
-  unsubscribe: (event, callback) => {
-    APP._internals.bus.unsubscribe(event, callback);
   },
 };
+
+// Applies one criteria rule and reports whether it moved anything, so
+// syncCriteria can tell a settled pass from one that still has work.
+function applyCriterion(targetForm, key, criteria) {
+  const show = APP._internals.when(criteria, targetForm);
+  let changed = false;
+
+  getRuleTargets(targetForm, key).forEach((target) => {
+    const node =
+      target instanceof HTMLFieldSetElement
+        ? target
+        : target.closest(".form-control");
+
+    if (!node) {
+      return;
+    }
+
+    if (node.hidden !== !show) {
+      changed = true;
+    }
+
+    node.hidden = !show;
+
+    if (node instanceof HTMLFieldSetElement) {
+      node.disabled = !show;
+      return;
+    }
+
+    node
+      .querySelectorAll("input, select, textarea")
+      .forEach((control) => (control.disabled = !show));
+
+    const embeddedWizard = node.parentElement?.matches("fieldset.wizard")
+      ? node.parentElement
+      : null;
+    const wizard = embeddedWizard ??
+      (node.nextElementSibling?.matches("fieldset.wizard")
+        ? node.nextElementSibling
+        : null);
+
+    if (wizard && getWizardController(wizard) === node) {
+      if (embeddedWizard || !show) {
+        wizard.hidden = !show;
+        wizard.disabled = !show;
+      }
+    }
+  });
+
+  return changed;
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    APP.toast("Copied to clipboard.", "tip");
+  } catch (_error) {
+    APP.toast("Couldn't copy to clipboard.", "caution");
+  }
+}
 
 function createLabelToolbar({ label, hint }) {
   const toolbar = document.createElement("span");
@@ -1760,10 +1872,15 @@ function createLabelToolbar({ label, hint }) {
   return toolbar;
 }
 
-function getWizardController(fieldset) {
-  return ["checkbox", "radio"].includes(fieldset.dataset.type)
-    ? fieldset.previousElementSibling
-    : fieldset.querySelector(":scope > .form-control");
+function getRuleTarget(targetForm, key) {
+  return (
+    getRuleTargets(targetForm, key)[0] ??
+    Array.from(
+      targetForm?.querySelectorAll("fieldset.list[data-name]") ?? [],
+    ).find(
+      (element) => element.dataset.name === key,
+    )
+  );
 }
 
 function getRuleTargets(targetForm, key) {
@@ -1784,116 +1901,111 @@ function getRuleTargets(targetForm, key) {
   ).filter((element) => element.dataset.name === key);
 }
 
-function getRuleTarget(targetForm, key) {
-  return (
-    getRuleTargets(targetForm, key)[0] ??
-    Array.from(
-      targetForm?.querySelectorAll("fieldset.list[data-name]") ?? [],
-    ).find(
-      (element) => element.dataset.name === key,
-    )
+function getWizardController(fieldset) {
+  return ["checkbox", "radio"].includes(fieldset.dataset.type)
+    ? fieldset.previousElementSibling
+    : fieldset.querySelector(":scope > .form-control");
+}
+
+function setupAppEvents({ onWorkflowLoaded, onAppInit, onRecordsTab }) {
+  APP.subscribe("overlay:show", () => store.dispatch(actions.setLoading(true)));
+  APP.subscribe("overlay:hide", () =>
+    store.dispatch(actions.setLoading(false)),
   );
-}
-
-function syncAutofills(targetForm) {
-  const rules =
-    targetForm === APP.feedbackForm
-      ? APP.rules.feedbackAutofillRules
-      : APP.rules.autofillRules;
-
-  Object.entries(rules).forEach(([key, autofills]) => {
-    const target = getRuleTarget(targetForm, key);
-    const eligible =
-      (target instanceof HTMLInputElement &&
-        !["checkbox", "file", "radio"].includes(target.type)) ||
-      (target instanceof HTMLSelectElement && !target.multiple);
-
-    if (!eligible || target.disabled) {
-      return;
+  APP.subscribe("tab:change", ({ id }) => {
+    if (id === "panel-records") {
+      onRecordsTab?.();
     }
-
-    const rule = autofills.find((autofill) =>
-      APP._internals.when(autofill.when, targetForm),
+  });
+  APP.subscribe("record:created", () => {
+    APP.form?.reset();
+    APP.toast("Submission received.", "tip");
+  });
+  APP.subscribe("feedback:submitted", (record) => {
+    store.dispatch(actions.prependFeedbackRecord(record));
+    APP.feedbackForm?.reset();
+    APP.notify(
+      `Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
+      { header: "Feedback submitted", variant: "tip" },
     );
+  });
+  APP.subscribe("workflow:loaded", (data) => onWorkflowLoaded?.(data));
+  APP.subscribe("app:init", (onInit) => onAppInit?.(onInit));
+}
 
-    if (!rule) {
+function setupDialogs() {
+  [APP.messageModalDismiss, APP.messageModalClose].forEach((button) =>
+    button?.addEventListener("click", () => APP.messageModal.close()),
+  );
+  APP.confirmModalConfirm?.addEventListener("click", () =>
+    APP.confirmModal.close("confirm"),
+  );
+  [APP.confirmModalCancel, APP.confirmModalClose].forEach((button) =>
+    button?.addEventListener("click", () => APP.confirmModal.close("cancel")),
+  );
+
+  APP.confirmModal?.addEventListener("close", () => {
+    APP.publish(
+      APP.confirmModal.returnValue === "confirm"
+        ? "confirm:accepted"
+        : "confirm:cancelled",
+      APP._internals.confirmDetail,
+    );
+    store.dispatch(actions.setConfirmDetail(undefined));
+    APP.publish("modal:closed");
+  });
+  APP.messageModal?.addEventListener("close", () =>
+    APP.publish("modal:closed"),
+  );
+  APP.messageModal?.addEventListener("click", async (event) => {
+    const button = event.target.closest(".copy-button");
+
+    if (!button) {
       return;
     }
 
-    target.value = `${
-      APP._internals.form.resolveValueReferences(rule.value, target) ?? ""
-    }`;
+    await copyToClipboard(button.dataset.copy);
   });
 }
 
-function syncRequisitions(targetForm) {
-  const rules =
-    targetForm === APP.feedbackForm
-      ? APP.rules.feedbackRequisitionRules
-      : APP.rules.requisitionRules;
-
-  Object.entries(rules).forEach(([key, requisitions]) => {
-    const target = getRuleTarget(targetForm, key);
-
-    if (
-      !(
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLSelectElement ||
-        target instanceof HTMLTextAreaElement
-      )
-    ) {
+function setupForms(onFormReset) {
+  APP.form?.addEventListener("change", (event) =>
+    APP._internals.form.syncWizards(event),
+  );
+  APP.form?.addEventListener("reset", () =>
+    requestAnimationFrame(() => {
+      APP._internals.form.resetLists();
+      onFormReset?.();
+    }),
+  );
+  APP.feedbackForm?.addEventListener("input", (event) =>
+    APP._internals.form.syncWizards(event, APP.feedbackForm),
+  );
+  APP.feedbackForm?.addEventListener("change", (event) => {
+    APP._internals.form.syncWizards(event, APP.feedbackForm);
+    APP._internals.form.syncModals(event);
+    APP._internals.form.syncAlerts(APP.feedbackForm);
+  });
+  APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+  APP.feedbackForm?.addEventListener("reset", () =>
+    requestAnimationFrame(() => {
+      APP._internals.form.syncWizards(undefined, APP.feedbackForm);
+      APP._internals.form.syncAlerts(APP.feedbackForm);
+    }),
+  );
+  APP.copyPreview?.addEventListener("click", async () => {
+    if (!APP.form.reportValidity()) {
       return;
     }
 
-    target.required = APP._internals.when(requisitions, targetForm);
+    const { charCount, copyText } = APP;
+
+    if (charCount) {
+      await copyToClipboard(copyText);
+    }
   });
-}
-
-function syncCriteria(targetForm) {
-  const rules =
-    targetForm === APP.feedbackForm
-      ? APP.rules.feedbackCriteriaRules
-      : APP.rules.criteriaRules;
-
-  Object.entries(rules).forEach(([key, criteria]) => {
-    const show = APP._internals.when(criteria, targetForm);
-
-    getRuleTargets(targetForm, key).forEach((target) => {
-      const node =
-        target instanceof HTMLFieldSetElement
-          ? target
-          : target.closest(".form-control");
-
-      if (!node) {
-        return;
-      }
-
-      node.hidden = !show;
-
-      if (node instanceof HTMLFieldSetElement) {
-        node.disabled = !show;
-        return;
-      }
-
-      node
-        .querySelectorAll("input, select, textarea")
-        .forEach((control) => (control.disabled = !show));
-
-      const embeddedWizard = node.parentElement?.matches("fieldset.wizard")
-        ? node.parentElement
-        : null;
-      const wizard = embeddedWizard ??
-        (node.nextElementSibling?.matches("fieldset.wizard")
-          ? node.nextElementSibling
-          : null);
-
-      if (wizard && getWizardController(wizard) === node) {
-        if (embeddedWizard || !show) {
-          wizard.hidden = !show;
-          wizard.disabled = !show;
-        }
-      }
-    });
+  APP.themeToggle?.addEventListener("change", () => {
+    APP.theme = APP.themeToggle.checked ? "dark" : "light";
   });
 }
 
@@ -2020,115 +2132,77 @@ function setupSurfaces() {
   });
 }
 
-function setupDialogs() {
-  [APP.messageModalDismiss, APP.messageModalClose].forEach((button) =>
-    button?.addEventListener("click", () => APP.messageModal.close()),
-  );
-  APP.confirmModalConfirm?.addEventListener("click", () =>
-    APP.confirmModal.close("confirm"),
-  );
-  [APP.confirmModalCancel, APP.confirmModalClose].forEach((button) =>
-    button?.addEventListener("click", () => APP.confirmModal.close("cancel")),
-  );
+function syncAutofills(targetForm) {
+  const rules =
+    targetForm === APP.feedbackForm
+      ? APP.rules.feedbackAutofillRules
+      : APP.rules.autofillRules;
 
-  APP.confirmModal?.addEventListener("close", () => {
-    APP.publish(
-      APP.confirmModal.returnValue === "confirm"
-        ? "confirm:accepted"
-        : "confirm:cancelled",
-      APP._internals.confirmDetail,
-    );
-    store.dispatch(actions.setConfirmDetail(undefined));
-    APP.publish("modal:closed");
-  });
-  APP.messageModal?.addEventListener("close", () =>
-    APP.publish("modal:closed"),
-  );
-  APP.messageModal?.addEventListener("click", async (event) => {
-    const button = event.target.closest(".copy-button");
+  Object.entries(rules).forEach(([key, autofills]) => {
+    const target = getRuleTarget(targetForm, key);
+    const eligible =
+      (target instanceof HTMLInputElement &&
+        !["checkbox", "file", "radio"].includes(target.type)) ||
+      (target instanceof HTMLSelectElement && !target.multiple);
 
-    if (!button) {
+    if (!eligible || target.disabled) {
       return;
     }
 
-    await copyToClipboard(button.dataset.copy);
-  });
-}
+    const rule = autofills.find((autofill) =>
+      APP._internals.when(autofill.when, targetForm),
+    );
 
-function setupForms(onFormReset) {
-  APP.form?.addEventListener("change", (event) =>
-    APP._internals.form.syncWizards(event),
-  );
-  APP.form?.addEventListener("reset", () =>
-    requestAnimationFrame(() => {
-      APP._internals.form.resetLists();
-      onFormReset?.();
-    }),
-  );
-  APP.feedbackForm?.addEventListener("input", (event) =>
-    APP._internals.form.syncWizards(event, APP.feedbackForm),
-  );
-  APP.feedbackForm?.addEventListener("change", (event) => {
-    APP._internals.form.syncWizards(event, APP.feedbackForm);
-    APP._internals.form.syncModals(event);
-    APP._internals.form.syncAlerts(APP.feedbackForm);
-  });
-  APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-  APP.feedbackForm?.addEventListener("reset", () =>
-    requestAnimationFrame(() => {
-      APP._internals.form.syncWizards(undefined, APP.feedbackForm);
-      APP._internals.form.syncAlerts(APP.feedbackForm);
-    }),
-  );
-  APP.copyPreview?.addEventListener("click", async () => {
-    if (!APP.form.reportValidity()) {
+    if (!rule) {
       return;
     }
 
-    const { charCount, copyText } = APP;
-
-    if (charCount) {
-      await copyToClipboard(copyText);
-    }
-  });
-  APP.themeToggle?.addEventListener("change", () => {
-    APP.theme = APP.themeToggle.checked ? "dark" : "light";
+    target.value = `${
+      APP._internals.form.resolveValueReferences(rule.value, target) ?? ""
+    }`;
   });
 }
 
-function setupAppEvents({ onWorkflowLoaded, onAppInit, onRecordsTab }) {
-  APP.subscribe("overlay:show", () => store.dispatch(actions.setLoading(true)));
-  APP.subscribe("overlay:hide", () =>
-    store.dispatch(actions.setLoading(false)),
-  );
-  APP.subscribe("tab:change", ({ id }) => {
-    if (id === "panel-records") {
-      onRecordsTab?.();
-    }
-  });
-  APP.subscribe("record:created", () => {
-    APP.form?.reset();
-    APP.toast("Submission received.", "tip");
-  });
-  APP.subscribe("feedback:submitted", (record) => {
-    store.dispatch(actions.prependFeedbackRecord(record));
-    APP.feedbackForm?.reset();
-    APP.notify(
-      `Thanks for the feedback! Keep this ID for reference:\n<span class="copyable"><code>${record.id}</code><button type="button" class="copy-button" data-copy="${record.id}" aria-label="Copy ID"><i class="copy-icon" aria-hidden="true"></i></button></span>`,
-      { header: "Feedback submitted", variant: "tip" },
-    );
-  });
-  APP.subscribe("workflow:loaded", (data) => onWorkflowLoaded?.(data));
-  APP.subscribe("app:init", (onInit) => onAppInit?.(onInit));
-}
+// Runs one pass over every criteria rule and reports whether anything
+// moved. The caller in syncWizards drives this to a fixed point alongside
+// the wizard sync, since the two read each other's `disabled` writes.
+function syncCriteria(targetForm) {
+  const rules =
+    targetForm === APP.feedbackForm
+      ? APP.rules.feedbackCriteriaRules
+      : APP.rules.criteriaRules;
+  let changed = false;
 
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    APP.toast("Copied to clipboard.", "tip");
-  } catch (_error) {
-    APP.toast("Couldn't copy to clipboard.", "caution");
+  for (const [key, criteria] of Object.entries(rules)) {
+    if (applyCriterion(targetForm, key, criteria)) {
+      changed = true;
+    }
   }
+
+  return changed;
+}
+
+function syncRequisitions(targetForm) {
+  const rules =
+    targetForm === APP.feedbackForm
+      ? APP.rules.feedbackRequisitionRules
+      : APP.rules.requisitionRules;
+
+  Object.entries(rules).forEach(([key, requisitions]) => {
+    const target = getRuleTarget(targetForm, key);
+
+    if (
+      !(
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    target.required = APP._internals.when(requisitions, targetForm);
+  });
 }
 
 store.subscribe((state, _previousState, action) => {

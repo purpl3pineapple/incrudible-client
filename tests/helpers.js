@@ -36,12 +36,22 @@ const expectCleanPage = ({ consoleErrors, pageErrors }) => {
   expect(consoleErrors).toEqual([]);
 };
 
-// Renders a schema into #form-controls and wires the same input/change
-// listeners a consumer app installs, so rule syncing and preview rendering
-// react to real user interaction rather than explicit re-sync calls.
-const mountSchema = async (page, { schema, rules = {}, preview = true }) =>
+// Renders a schema into #form-controls and wires the consumer-level
+// listeners an app installs on top of the library.
+//
+// Deliberately does NOT call syncWizards from these listeners: APP.init
+// already installs a `change` handler that does it, so adding another
+// would run the rule sync twice per interaction. That matters — the rule
+// sync mutates the `disabled` state its own dependency resolution reads,
+// so a second pass silently repairs ordering faults a real single-pass
+// app would show. Tests that genuinely need syncing on every keystroke
+// opt in with syncOnInput.
+const mountSchema = async (
+  page,
+  { schema, rules = {}, preview = true, syncOnInput = false },
+) =>
   page.evaluate(
-    ({ schema, rules, preview }) => {
+    ({ schema, rules, preview, syncOnInput }) => {
       for (const [name, value] of Object.entries(rules)) {
         APP.rules[name] = value;
       }
@@ -49,15 +59,16 @@ const mountSchema = async (page, { schema, rules = {}, preview = true }) =>
       APP.formControls.replaceChildren(APP.renderEntries(schema));
 
       APP.formHelpers.formControls.forEach((control) => {
-        control.addEventListener("input", (event) => {
-          APP.formHelpers.syncWizards(event);
+        control.addEventListener("input", () => {
+          if (syncOnInput) {
+            APP.formHelpers.syncWizards();
+          }
 
           if (preview) {
             APP.formHelpers.renderPreview();
           }
         });
         control.addEventListener("change", (event) => {
-          APP.formHelpers.syncWizards(event);
           APP.formHelpers.syncModals(event);
           APP.formHelpers.syncAlerts();
           APP.formHelpers.syncArticles();
@@ -75,7 +86,7 @@ const mountSchema = async (page, { schema, rules = {}, preview = true }) =>
         APP.formHelpers.renderPreview();
       }
     },
-    { schema, rules, preview },
+    { schema, rules, preview, syncOnInput },
   );
 
 // Stands in for google.script.run. `outcome` picks which handler fires:
