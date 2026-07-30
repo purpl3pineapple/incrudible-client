@@ -35,10 +35,10 @@ value without creating a separate record field.
 ]
 ```
 
-Nameless controls still support native constraints and can be referenced by
-`id`, but they cannot own change-triggered rules because those are keyed by
-`name`. Lists may also omit `name`; their entries are then utility inputs and
-are omitted from the preview and submission.
+Nameless controls still support native constraints and change-triggered rules.
+Rule maps resolve their owning control by exact `id` first, with `name` as a
+backward-compatible fallback. Lists may also omit `name`; their entries are
+then utility inputs and are omitted from the preview and submission.
 
 <details>
 <summary><strong>Checkbox</strong></summary>

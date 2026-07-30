@@ -365,6 +365,66 @@ test("resolves conditional value references", async ({ page }) => {
   expectCleanPage(errors);
 });
 
+test("keeps a nameless wizard source out of its interpolated preview", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await page.evaluate(() => {
+    const source = {
+      type: "date",
+      id: "interpolated",
+      label: "Interpolated",
+    };
+    const destination = {
+      type: "select",
+      id: "interpolator",
+      name: "entry1",
+      label: "Entry1",
+      options: [
+        { label: "Choose", value: "" },
+        {
+          label: "the-label",
+          value: "Text that interpolates !{#interpolated}",
+        },
+      ],
+      wizards: [{ test: "the-label", wizard: source }],
+    };
+
+    APP.rules.wizardRules = { interpolator: destination.wizards };
+    APP.formControls.replaceChildren(APP.renderEntries([destination]));
+
+    APP.formHelpers.formControls.forEach((control) => {
+      control.addEventListener("input", (event) => {
+        APP.formHelpers.syncWizards(event);
+        APP.formHelpers.renderPreview();
+      });
+      control.addEventListener("change", (event) => {
+        APP.formHelpers.syncWizards(event);
+        APP.formHelpers.renderPreview();
+      });
+    });
+
+    APP.formHelpers.syncWizards();
+    APP.formHelpers.renderPreview();
+  });
+
+  await page.locator("#interpolator").selectOption({ label: "the-label" });
+  await expect(page.locator("#interpolated")).toBeVisible();
+  await page.locator("#interpolated").fill("2026-07-30");
+
+  expect(await page.evaluate(() => APP.preview)).toEqual([
+    [undefined, "Entry1", "Text that interpolates 2026-07-30"],
+  ]);
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form)].map(([name]) => name)),
+  ).toEqual(["entry1"]);
+  await expect(page.locator("#preview-list")).not.toContainText("Interpolated:");
+  expectCleanPage(errors);
+});
+
 test("toggles checkbox wizard containers on change", async ({ page }) => {
   const errors = await openFixture(page);
 
