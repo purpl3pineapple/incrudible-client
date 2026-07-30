@@ -899,36 +899,25 @@ export const APP = {
     },
     when: (dependencies = new Map(), targetForm = APP.form) => {
       const controls = Array.from(targetForm?.elements ?? []).filter(
-        (control) =>
-          (control instanceof HTMLInputElement ||
-            control instanceof HTMLSelectElement ||
-            control instanceof HTMLTextAreaElement) &&
-          (control.id || control.name) &&
-          !control.disabled,
+        (control) => control.name && !control.disabled,
       );
-      const controlKeys = ["id", "name"].flatMap((property) =>
-        [
-          ...new Set(
-            controls.map((control) => control[property]).filter(Boolean),
-          ),
-        ].map((key) => [property, key]),
-      );
+      const controlNames = new Set(controls.map((control) => control.name));
 
-      for (const [keyMatcher, test] of dependencies) {
-        const keys = controlKeys.filter(([, key]) =>
-          APP._internals.match(keyMatcher, [key]),
+      for (const [nameMatcher, test] of dependencies) {
+        const names = [...controlNames].filter((name) =>
+          APP._internals.match(nameMatcher, [name]),
         );
 
-        if (!keys.length) {
+        if (!names.length) {
           console.warn(
-            `Dependency references unknown control "${keyMatcher}"`,
+            `Dependency references unknown control "${nameMatcher}"`,
           );
         }
 
         if (
-          !keys.some(([property, key]) => {
+          !names.some((name) => {
             const values = controls
-              .filter((control) => control[property] === key)
+              .filter((control) => control.name === name)
               .flatMap((control) =>
                 APP._internals.getValue(control, targetForm),
               );
@@ -1123,10 +1112,7 @@ export const APP = {
             continue;
           }
 
-          const footnote = (
-            APP.rules.footnoteRules[control.id] ??
-            APP.rules.footnoteRules[control.name]
-          )
+          const footnote = APP.rules.footnoteRules[control.name]
             ?.filter(
               (r) =>
                 APP._internals.match(
@@ -1242,20 +1228,13 @@ export const APP = {
           },
         );
 
-        return conditional.replaceAll(
-          /!\{#([^}]+)\}/g,
-          (token, key) => {
-            const source = Array.from(
-              control.form?.querySelectorAll("input, select, textarea") ?? [],
-            ).find((candidate) =>
-              [candidate.id, candidate.name].some(
-                (value) => value && APP._internals.match(key, [value]),
-              ),
-            );
+        return conditional.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
+          const source = Array.from(
+            control.form?.querySelectorAll("input, select, textarea") ?? [],
+          ).find((candidate) => candidate.id === id);
 
-            return source?.value ? source.value : token;
-          },
-        );
+          return source?.value ? source.value : token;
+        });
       },
       renderPreview() {
         const rows = APP.preview;
@@ -1298,9 +1277,8 @@ export const APP = {
           : APP.rules.alertRules;
 
         targetForm.querySelectorAll(".control-alerts").forEach((container) => {
+          const activeRules = rules[container.dataset.name];
           const control = document.getElementById(container.dataset.controlId);
-          const activeRules =
-            control && (rules[control.id] ?? rules[container.dataset.name]);
 
           if (!activeRules || !control) {
             return;
@@ -1327,15 +1305,15 @@ export const APP = {
       syncModals(e) {
         const target = e?.target;
 
-        if (!target?.id) {
+        if (!target?.name) {
           return;
         }
 
-        const rules =
+        const activeRules = (
           target.form === APP.feedbackForm
             ? APP.rules.feedbackModalRules
-            : APP.rules.modalRules;
-        const activeRules = rules[target.id] ?? rules[target.name];
+            : APP.rules.modalRules
+        )[target.name];
 
         if (!activeRules) {
           return;
@@ -1357,11 +1335,13 @@ export const APP = {
       syncArticles(targetForm = APP.form) {
         const rules = APP.rules.articleRules;
         const rule = Object.entries(rules)
-          .flatMap(([key, articles]) =>
+          .flatMap(([name, articles]) =>
             articles.filter((article) => {
-              const values = getRuleTargets(targetForm, key).flatMap(
-                (control) => APP._internals.getValue(control, targetForm),
-              );
+              const values = Array.from(targetForm?.elements ?? [])
+                .filter((control) => control.name === name)
+                .flatMap((control) =>
+                  APP._internals.getValue(control, targetForm),
+                );
 
               return (
                 APP._internals.match(article.test, values) &&
@@ -1387,7 +1367,7 @@ export const APP = {
           const controller = getWizardController(fieldset);
           const control = document.getElementById(controller?.htmlFor ?? "");
 
-          if (!control?.id) {
+          if (!control?.name) {
             return;
           }
 
@@ -1395,11 +1375,7 @@ export const APP = {
           const activeRules =
             (targetForm === APP.feedbackForm
               ? APP.rules.feedbackWizardRules
-              : APP.rules.wizardRules)[control.id] ??
-            (targetForm === APP.feedbackForm
-              ? APP.rules.feedbackWizardRules
-              : APP.rules.wizardRules)[control.name] ??
-            [];
+              : APP.rules.wizardRules)[control.name] || [];
 
           const wizards = Array.from(
             fieldset.querySelectorAll(
@@ -1780,19 +1756,13 @@ function getWizardController(fieldset) {
     : fieldset.querySelector(":scope > .form-control");
 }
 
-function getRuleTargets(targetForm, key) {
-  return Array.from(targetForm?.elements ?? []).filter((control) =>
-    [control.id, control.name].some(
-      (value) => value && APP._internals.match(key, [value]),
-    ),
-  );
-}
-
-function getRuleTarget(targetForm, key) {
+function getRuleTarget(targetForm, name) {
   return (
-    getRuleTargets(targetForm, key)[0] ??
+    Array.from(targetForm?.elements ?? []).find(
+      (control) => control.name === name,
+    ) ??
     Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
-      (element) => APP._internals.match(key, [element.dataset.name]),
+      (element) => element.dataset.name === name,
     )
   );
 }
@@ -1803,8 +1773,8 @@ function syncAutofills(targetForm) {
       ? APP.rules.feedbackAutofillRules
       : APP.rules.autofillRules;
 
-  Object.entries(rules).forEach(([key, autofills]) => {
-    const target = getRuleTarget(targetForm, key);
+  Object.entries(rules).forEach(([name, autofills]) => {
+    const target = getRuleTarget(targetForm, name);
     const eligible =
       (target instanceof HTMLInputElement &&
         !["checkbox", "file", "radio"].includes(target.type)) ||
@@ -1834,8 +1804,8 @@ function syncRequisitions(targetForm) {
       ? APP.rules.feedbackRequisitionRules
       : APP.rules.requisitionRules;
 
-  Object.entries(rules).forEach(([key, requisitions]) => {
-    const target = getRuleTarget(targetForm, key);
+  Object.entries(rules).forEach(([name, requisitions]) => {
+    const target = getRuleTarget(targetForm, name);
 
     if (
       !(
@@ -1857,8 +1827,14 @@ function syncCriteria(targetForm) {
       ? APP.rules.feedbackCriteriaRules
       : APP.rules.criteriaRules;
 
-  Object.entries(rules).forEach(([key, criteria]) => {
-    const target = getRuleTarget(targetForm, key);
+  Object.entries(rules).forEach(([name, criteria]) => {
+    const target =
+      Array.from(targetForm?.elements ?? []).find(
+        (control) => control.name === name,
+      ) ??
+      Array.from(targetForm?.querySelectorAll("[data-name]") ?? []).find(
+        (element) => element.dataset.name === name,
+      );
     const node =
       target instanceof HTMLFieldSetElement
         ? target
@@ -2052,18 +2028,9 @@ function setupDialogs() {
 }
 
 function setupForms(onFormReset) {
-  APP.form?.addEventListener("input", (event) => {
-    APP._internals.form.syncWizards(event);
-    APP._internals.form.syncArticles();
-    APP._internals.form.renderPreview();
-  });
-  APP.form?.addEventListener("change", (event) => {
-    APP._internals.form.syncWizards(event);
-    APP._internals.form.syncArticles();
-    APP._internals.form.syncModals(event);
-    APP._internals.form.syncAlerts();
-    APP._internals.form.renderPreview();
-  });
+  APP.form?.addEventListener("change", (event) =>
+    APP._internals.form.syncWizards(event),
+  );
   APP.form?.addEventListener("reset", () =>
     requestAnimationFrame(() => {
       APP._internals.form.resetLists();

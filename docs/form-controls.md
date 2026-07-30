@@ -35,9 +35,9 @@ value without creating a separate record field.
 ]
 ```
 
-Nameless controls still support native constraints and change-triggered rules.
-Rule maps resolve their owning control by `id` first, with `name` as an optional
-fallback. Lists may also omit `name`; their entries are then utility inputs and
+Nameless controls still support native constraints and can be referenced by
+`id`, but they cannot own change-triggered rules because those are keyed by
+`name`. Lists may also omit `name`; their entries are then utility inputs and
 are omitted from the preview and submission.
 
 <details>
@@ -933,13 +933,11 @@ source control.
 ```
 
 Every token in the original configured string is resolved from a same-form
-control by matching its `id` or `name`. Keys use the same exact-string or
-slash-delimited regular expression syntax as conditional rules, so a value can
-contain more than one reference. An unknown or empty source leaves its token
-unchanged, and injected text is not parsed again. Only dropdown, checkbox, and
-radio values, plus footnotes on any workflow form control, are interpolation
-destinations; referenced controls may be any workflow form control. Feedback
-forms do not interpolate these references.
+control by `id`, so a value can contain more than one reference. An unknown or
+empty source leaves its token unchanged, and injected text is not parsed again.
+Only dropdown, checkbox, and radio values, plus footnotes on any workflow form
+control, are interpolation destinations; referenced controls may be any
+workflow form control. Feedback forms do not interpolate these references.
 
 </details>
 
