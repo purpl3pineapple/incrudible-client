@@ -1769,10 +1769,19 @@ function getWizardController(fieldset) {
 function getRuleTargets(targetForm, key) {
   const controls = Array.from(targetForm?.elements ?? []);
   const idMatch = controls.find((control) => control.id === key);
+  const nameMatches = controls.filter((control) => control.name === key);
 
-  return idMatch
-    ? [idMatch]
-    : controls.filter((control) => control.name === key);
+  if (idMatch) {
+    return [idMatch];
+  }
+
+  if (nameMatches.length) {
+    return nameMatches;
+  }
+
+  return Array.from(
+    targetForm?.querySelectorAll("fieldset.list[data-name]") ?? [],
+  ).filter((element) => element.dataset.name === key);
 }
 
 function getRuleTarget(targetForm, key) {
@@ -1847,38 +1856,44 @@ function syncCriteria(targetForm) {
       : APP.rules.criteriaRules;
 
   Object.entries(rules).forEach(([key, criteria]) => {
-    const target = getRuleTarget(targetForm, key);
-    const node =
-      target instanceof HTMLFieldSetElement
-        ? target
-        : target?.closest(".form-control");
-
-    if (!node) {
-      return;
-    }
-
     const show = APP._internals.when(criteria, targetForm);
 
-    node.hidden = !show;
+    getRuleTargets(targetForm, key).forEach((target) => {
+      const node =
+        target instanceof HTMLFieldSetElement
+          ? target
+          : target.closest(".form-control");
 
-    if (node instanceof HTMLFieldSetElement) {
-      node.disabled = !show;
-    } else {
+      if (!node) {
+        return;
+      }
+
+      node.hidden = !show;
+
+      if (node instanceof HTMLFieldSetElement) {
+        node.disabled = !show;
+        return;
+      }
+
       node
         .querySelectorAll("input, select, textarea")
         .forEach((control) => (control.disabled = !show));
 
-      const wizard = node.parentElement?.matches("fieldset.wizard")
+      const embeddedWizard = node.parentElement?.matches("fieldset.wizard")
         ? node.parentElement
-        : node.nextElementSibling?.matches("fieldset.wizard")
+        : null;
+      const wizard = embeddedWizard ??
+        (node.nextElementSibling?.matches("fieldset.wizard")
           ? node.nextElementSibling
-          : null;
+          : null);
 
-      if (wizard && getWizardController(wizard) === node && !show) {
-        wizard.hidden = true;
-        wizard.disabled = true;
+      if (wizard && getWizardController(wizard) === node) {
+        if (embeddedWizard || !show) {
+          wizard.hidden = !show;
+          wizard.disabled = !show;
+        }
       }
-    }
+    });
   });
 }
 
