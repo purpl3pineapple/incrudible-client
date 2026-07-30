@@ -17,12 +17,18 @@
 		<label><input type="checkbox" id="theme-toggle"> Dark theme</label>
 	</nav>
 	<button type="button" id="open-sidenav">Open menu</button>
+	<button type="button" data-drawer-target="sidenav">Open menu (drawer target)</button>
 	<nav id="sidenav">
 		<button type="button" id="close-sidenav">Close menu</button>
 		<div class="nav-dropdown">
 			<button type="button" class="dropdown-button" aria-expanded="false">Operations</button>
 			<a href="javascript:void(0)" data-flow-id="review">Review</a>
 		</div>
+		<div class="nav-dropdown">
+			<button type="button" class="dropdown-button" aria-expanded="false">Reports</button>
+			<a href="javascript:void(0)" data-flow-id="summary">Summary</a>
+		</div>
+		<a href="#review" data-path="/review" class="active">Active flow</a>
 	</nav>
 
 	<div role="tablist" aria-label="Views">
@@ -55,6 +61,7 @@
 		<form id="feedback-form">
 			<div id="feedback-alerts"></div>
 			<div id="feedback-form-controls"></div>
+			<button type="reset">Reset feedback</button>
 		</form>
 	</aside>
 	<button type="button" id="open-notepad">Open notepad</button>
@@ -83,10 +90,62 @@
 		import { marked } from "marked";
 		import { APP, DAYS } from "/dist/incrudible-client.min.js";
 
+		// A real consumer registers GitHub-flavored alert and heading-id
+		// extensions before handing `marked` to the client; bare marked
+		// emits neither, and the client keys off both (.markdown-alert
+		// for the alert cap, h*[id] for scoped heading anchors).
+		marked.use({
+			renderer: {
+				blockquote({ tokens }) {
+					const body = this.parser.parse(tokens);
+					const match = /^\s*<p>\[!(\w+)\]/.exec(body);
+
+					if (!match) {
+						return `<blockquote>\n${body}</blockquote>\n`;
+					}
+
+					const variant = match[1].toLowerCase();
+
+					return `<div class="markdown-alert markdown-alert-${variant}">${body.replace(/\[!\w+\]\s*/, "")}</div>`;
+				},
+				heading({ tokens, depth }) {
+					const body = this.parser.parseInline(tokens);
+					const id = body
+						.replace(/<[^>]*>/g, "")
+						.trim()
+						.toLowerCase()
+						.replace(/[^\w]+/g, "-");
+
+					return `<h${depth} id="${id}">${body}</h${depth}>\n`;
+				},
+			},
+		});
+
 		window.marked = marked;
 		window.APP = APP;
 		window.DAYS = DAYS;
-		APP.init();
+
+		// Tests assert against this instead of installing their own
+		// callbacks, so the init-time lifecycle hooks are exercised on
+		// every fixture load rather than only where a test opts in.
+		window.appEvents = [];
+
+		APP.init({
+			...(window.__INIT__ ?? {}),
+			onAppInit: (detail) => window.appEvents.push(["app:init", detail]),
+			onFormReset: () => window.appEvents.push(["form:reset"]),
+			onRecordsTab: () => window.appEvents.push(["records:tab"]),
+			onWorkflowLoaded: (detail) =>
+				window.appEvents.push(["workflow:loaded", detail]),
+		});
+
+		window.mountWorkflow = ({ schema, rules = {} }) => {
+			APP.rules.criteriaRules = rules.criteria || {};
+			APP.rules.wizardRules = rules.wizards || {};
+			APP.formControls.replaceChildren(APP.renderEntries(schema));
+			APP.formHelpers.syncWizards();
+			APP.formHelpers.renderPreview();
+		};
 		document.documentElement.dataset.ready = "true";
 	</script>
 </body>

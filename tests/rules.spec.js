@@ -1,0 +1,411 @@
+const { expect, test } = require("./setup");
+const { expectCleanPage, mountSchema, openFixture } = require("./helpers");
+
+test("warns once per sync about a dependency on an unknown control", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [{ type: "text", id: "present", name: "present", label: "Present" }],
+    rules: { criteriaRules: { present: [["missing-control", true]] } },
+  });
+
+  expect(errors.consoleWarnings).toContain(
+    'Dependency references unknown control "missing-control"',
+  );
+  // An unresolvable dependency fails closed rather than revealing the field.
+  await expect(page.locator("#present")).toBeHidden();
+  expectCleanPage(errors);
+});
+
+test("resolves rules keyed by a list fieldset's submission name", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "show-tags", name: "showTags", label: "Show tags" },
+      // The id and the name differ, so "tags" matches neither an element id
+      // nor a control name — only the fieldset's data-name.
+      { type: "list", id: "tag-list", name: "tags", label: "Tags" },
+    ],
+    rules: {
+      criteriaRules: { tags: [["show-tags", true]] },
+      requisitionRules: { tags: [["show-tags", true]] },
+    },
+  });
+
+  const list = page.locator("#tag-list");
+  await expect(list).toBeHidden();
+  await expect(list).toHaveAttribute("disabled", "");
+
+  await page.locator("#show-tags").check();
+  await expect(list).toBeVisible();
+  await expect(list).not.toHaveAttribute("disabled", "");
+
+  await page.locator("#show-tags").uncheck();
+  await expect(list).toBeHidden();
+  expectCleanPage(errors);
+});
+
+test("ignores autofill and requisition rules for ineligible targets", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+      { type: "checkbox", id: "flag", name: "flag", label: "Flag" },
+      { type: "image", id: "proof", name: "proof", label: "Proof" },
+      {
+        type: "listbox",
+        id: "regions",
+        name: "regions",
+        label: "Regions",
+        options: [{ label: "North", value: "north" }],
+      },
+      {
+        type: "text",
+        id: "off",
+        name: "off",
+        label: "Disabled target",
+        disabled: true,
+      },
+      { type: "list", id: "codes", name: "codes", label: "Codes" },
+    ],
+    rules: {
+      autofillRules: {
+        // None of these targets accept a scalar autofill value.
+        flag: [{ value: "true", when: [["gate", true]] }],
+        proof: [{ value: "ignored", when: [["gate", true]] }],
+        regions: [{ value: "north", when: [["gate", true]] }],
+        off: [{ value: "ignored", when: [["gate", true]] }],
+        codes: [{ value: "ignored", when: [["gate", true]] }],
+      },
+      // A fieldset is not a settable requisition target either.
+      requisitionRules: { codes: [["gate", true]] },
+    },
+  });
+
+  await page.locator("#gate").check();
+
+  await expect(page.locator("#flag")).not.toBeChecked();
+  await expect(page.locator("#proof")).toHaveValue("");
+  await expect(page.locator("#regions")).toHaveValue("");
+  await expect(page.locator("#off")).toHaveValue("");
+  await expect(page.locator("#codes-0")).toHaveValue("");
+  await expect(page.locator("#codes")).not.toHaveAttribute("required", "");
+  expectCleanPage(errors);
+});
+
+test("skips autofill rules whose dependencies never pass", async ({ page }) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+      { type: "text", id: "target", name: "target", label: "Target" },
+    ],
+    rules: {
+      autofillRules: {
+        target: [{ value: "filled", when: [["gate", false]] }],
+      },
+    },
+  });
+
+  // gate is unchecked, so the false-test rule matches and fills.
+  await expect(page.locator("#target")).toHaveValue("filled");
+
+  // While a rule still matches it is reapplied on every sync, so an edit
+  // made under that condition is overwritten.
+  await page.locator("#target").fill("manual");
+  await expect(page.locator("#target")).toHaveValue("filled");
+
+  // Once no rule matches, the target is left alone entirely — the previous
+  // autofill is not cleared, and later edits stick.
+  await page.locator("#gate").check();
+  await expect(page.locator("#target")).toHaveValue("filled");
+  await page.locator("#target").fill("manual");
+  await expect(page.locator("#target")).toHaveValue("manual");
+  expectCleanPage(errors);
+});
+
+test("clears an autofill target when the rule resolves to nothing", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+      { type: "text", id: "target", name: "target", label: "Target" },
+    ],
+    rules: {
+      autofillRules: {
+        target: [{ value: undefined, when: [["gate", true]] }],
+      },
+    },
+  });
+
+  await page.locator("#target").fill("manual");
+  await page.locator("#gate").check();
+
+  // A rule with no value stringifies to empty rather than "undefined".
+  await expect(page.locator("#target")).toHaveValue("");
+  expectCleanPage(errors);
+});
+
+test("requires every dependency across controls sharing a name", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      ...["alpha", "beta"].map((value) => ({
+        type: "checkbox",
+        id: `${value}-flag`,
+        name: "flags",
+        label: `${value} flag`,
+        value,
+      })),
+      { type: "text", id: "detail", name: "detail", label: "Detail" },
+    ],
+    rules: { criteriaRules: { detail: [["flags", "beta"]] } },
+  });
+
+  const detail = page.locator("#detail");
+  await expect(detail).toBeHidden();
+
+  // Values are pooled across every control with the name, so checking the
+  // matching one is enough.
+  await page.locator("#alpha-flag").check();
+  await expect(detail).toBeHidden();
+
+  await page.locator("#beta-flag").check();
+  await expect(detail).toBeVisible();
+
+  await page.locator("#beta-flag").uncheck();
+  await expect(detail).toBeHidden();
+  expectCleanPage(errors);
+});
+
+test("ignores disabled controls when resolving dependencies", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "outer", name: "outer", label: "Outer" },
+      { type: "checkbox", id: "inner", name: "inner", label: "Inner" },
+      { type: "text", id: "detail", name: "detail", label: "Detail" },
+    ],
+    rules: {
+      criteriaRules: {
+        inner: [["outer", true]],
+        detail: [["inner", true]],
+      },
+    },
+  });
+
+  await page.locator("#outer").check();
+  await page.locator("#inner").check();
+  await expect(page.locator("#detail")).toBeVisible();
+
+  // Hiding `inner` disables it, which removes it from dependency
+  // resolution and collapses everything that depended on it.
+  await page.locator("#outer").uncheck();
+  await expect(page.locator("#inner")).toBeDisabled();
+  await expect(page.locator("#detail")).toBeHidden();
+  expectCleanPage(errors);
+});
+
+test("routes each rule family through the store independently", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  expect(
+    await page.evaluate(() => {
+      const families = Object.keys(APP.rules);
+
+      APP.rules.alertRules = { a: [] };
+      // Only the known families have store-backed accessors; anything else
+      // becomes an inert own property on the facade.
+      APP.rules.notARule = { b: [] };
+
+      return {
+        families,
+        alertRules: APP.rules.alertRules,
+        untouchedFamily: APP.rules.wizardRules,
+        unknownIsInert:
+          Object.getOwnPropertyDescriptor(APP.rules, "notARule").get ===
+          undefined,
+      };
+    }),
+  ).toEqual({
+    families: [
+      "modalRules",
+      "articleRules",
+      "alertRules",
+      "footnoteRules",
+      "wizardRules",
+      "criteriaRules",
+      "requisitionRules",
+      "autofillRules",
+      "feedbackWizardRules",
+      "feedbackCriteriaRules",
+      "feedbackRequisitionRules",
+      "feedbackAutofillRules",
+      "feedbackAlertRules",
+      "feedbackModalRules",
+    ],
+    alertRules: { a: [] },
+    untouchedFamily: {},
+    unknownIsInert: true,
+  });
+  expectCleanPage(errors);
+});
+
+test("syncs modals only for controls that own a rule", async ({ page }) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      { type: "text", id: "anonymous", label: "Anonymous" },
+      { type: "checkbox", id: "watched", name: "watched", label: "Watched" },
+      { type: "checkbox", id: "unwatched", name: "unwatched", label: "Unwatched" },
+    ],
+    rules: {
+      modalRules: {
+        watched: [
+          {
+            test: true,
+            modal: { type: "message", header: "Noted", message: "Recorded." },
+          },
+        ],
+        // A rule whose test never passes must not open anything.
+        unwatched: [
+          {
+            test: "never",
+            modal: { type: "message", header: "Never", message: "Never." },
+          },
+        ],
+      },
+    },
+  });
+
+  // A control with neither id-keyed nor name-keyed rules is skipped, and a
+  // synthetic event with no target returns early.
+  await page.evaluate(() => APP.formHelpers.syncModals());
+  await page.evaluate(() => APP.formHelpers.syncModals({ target: null }));
+  await page.locator("#anonymous").fill("text");
+  await page.locator("#unwatched").check();
+  await expect(page.locator("#message-modal")).not.toHaveAttribute("open", "");
+
+  await page.locator("#watched").check();
+  await expect(page.locator("#message-modal")).toHaveAttribute("open", "");
+  await expect(page.locator("#message-modal-header")).toHaveText("Noted");
+  expectCleanPage(errors);
+});
+
+test("re-renders control alerts on every change", async ({ page }) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      {
+        type: "select",
+        id: "status",
+        name: "status",
+        label: "Status",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Open", value: "open" },
+          { label: "Blocked", value: "blocked" },
+        ],
+        alerts: [{ test: "Blocked", alert: { variant: "warning", message: "x" } }],
+      },
+      // An alert container whose control carries no rules stays empty.
+      {
+        type: "text",
+        id: "unruled",
+        name: "unruled",
+        label: "Unruled",
+        alerts: [{ test: true, alert: { variant: "note", message: "unused" } }],
+      },
+    ],
+    rules: {
+      alertRules: {
+        status: [
+          {
+            test: "Blocked",
+            alert: { variant: "warning", message: "Escalate this case." },
+          },
+          {
+            test: "Open",
+            alert: { variant: "note", message: "Awaiting triage." },
+          },
+        ],
+      },
+    },
+  });
+
+  const alerts = page.locator('.control-alerts[data-control-id="status"]');
+  await expect(alerts).toBeEmpty();
+
+  await page.locator("#status").selectOption("blocked");
+  await expect(alerts).toContainText("Escalate this case.");
+  await expect(alerts).not.toContainText("Awaiting triage.");
+
+  // Switching value replaces the previous alert rather than appending.
+  await page.locator("#status").selectOption("open");
+  await expect(alerts).toContainText("Awaiting triage.");
+  await expect(alerts).not.toContainText("Escalate this case.");
+
+  await page.locator("#status").selectOption("");
+  await expect(alerts).toBeEmpty();
+  await expect(
+    page.locator('.control-alerts[data-control-id="unruled"]'),
+  ).toBeEmpty();
+  expectCleanPage(errors);
+});
+
+test("leaves alert containers alone when their control is gone", async ({
+  page,
+}) => {
+  const errors = await openFixture(page);
+
+  await mountSchema(page, {
+    schema: [
+      {
+        type: "text",
+        id: "orphan",
+        name: "orphan",
+        label: "Orphan",
+        alerts: [{ test: true, alert: { variant: "note", message: "n" } }],
+      },
+    ],
+    rules: {
+      alertRules: {
+        orphan: [{ test: true, alert: { variant: "note", message: "Present." } }],
+      },
+    },
+  });
+
+  await page.locator("#orphan").fill("value");
+  await expect(page.locator(".control-alerts")).toContainText("Present.");
+
+  // Removing the control leaves the container orphaned; syncing must not
+  // throw or clear what is already rendered.
+  await page.evaluate(() => {
+    document.getElementById("orphan").remove();
+    APP.formHelpers.syncAlerts();
+  });
+  await expect(page.locator(".control-alerts")).toContainText("Present.");
+  expectCleanPage(errors);
+});

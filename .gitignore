@@ -7,3 +7,7 @@ node_modules/
 !.github/workflows/**
 playwright-report/
 test-results/
+.coverage-build/
+.coverage-src/
+.nyc_output/
+coverage/

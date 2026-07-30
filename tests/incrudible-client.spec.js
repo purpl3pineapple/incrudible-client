@@ -1,25 +1,6 @@
-const { expect, test } = require("@playwright/test");
-
-const openFixture = async (page) => {
-  const pageErrors = [];
-  const consoleErrors = [];
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      consoleErrors.push(message.text());
-    }
-  });
-
-  await page.goto("/tests/fixture.html");
-  await expect(page.locator("html")).toHaveAttribute("data-ready", "true");
-
-  return { consoleErrors, pageErrors };
-};
-
-const expectCleanPage = ({ consoleErrors, pageErrors }) => {
-  expect(pageErrors).toEqual([]);
-  expect(consoleErrors).toEqual([]);
-};
+const { expect, test } = require("./setup");
+const { expectCleanPage, openFixture, stubClipboard } = require("./helpers");
+const { criteriaWorkflow } = require("./fixtures/criteria-workflow");
 
 test("loads and initializes the production bundle", async ({ page }) => {
   const errors = await openFixture(page);
@@ -566,6 +547,196 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
   expectCleanPage(errors);
 });
 
+test.describe("criteria workflow", () => {
+  test.beforeEach(async ({ page }) => {
+    await openFixture(page);
+    await page.evaluate(
+      (workflow) => window.mountWorkflow(workflow),
+      criteriaWorkflow,
+    );
+  });
+
+  test("renders the schema as actual form elements", async ({ page }) => {
+    await expect(page.locator('#show-options[type="checkbox"]')).toHaveCount(1);
+    await expect(page.locator('input[type="radio"][name="option"]')).toHaveCount(
+      3,
+    );
+    await expect(page.locator("textarea#approval-notes")).toHaveCount(1);
+    await expect(page.locator("fieldset#conditional-tags")).toHaveCount(1);
+    await expect(page.locator('input#conditional-tags-0[name="tags_0"]')).toHaveCount(
+      1,
+    );
+    await expect(page.locator('#include-details[type="checkbox"]')).toHaveCount(
+      1,
+    );
+    await expect(page.locator('input#detail-notes[type="text"]')).toHaveCount(1);
+    await expect(page.locator("select#conditional-mode")).toHaveCount(1);
+    await expect(page.locator('input#mode-notes[type="text"]')).toHaveCount(1);
+  });
+
+  test("applies one criteria rule to every matching element", async ({ page }) => {
+    const options = page.locator('input[type="radio"][name="option"]');
+
+    await expect(options).toHaveCount(3);
+    for (const option of await options.all()) {
+      await expect(option).toBeHidden();
+      await expect(option).toBeDisabled();
+    }
+
+    await page.locator("#show-options").check();
+    for (const option of await options.all()) {
+      await expect(option).toBeVisible();
+      await expect(option).toBeEnabled();
+    }
+
+    await page.locator("#second-option").check();
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).get("option")),
+    ).toBe("second");
+
+    await page.locator("#show-options").uncheck();
+    for (const option of await options.all()) {
+      await expect(option).toBeHidden();
+      await expect(option).toBeDisabled();
+    }
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).has("option")),
+    ).toBe(false);
+  });
+
+  test("keeps id-owned criteria independent when names match", async ({ page }) => {
+    const first = page.locator("#first-detail");
+    const second = page.locator("#second-detail");
+
+    await expect(first).toBeHidden();
+    await expect(second).toBeHidden();
+
+    await page.locator("#show-first").check();
+    await expect(first).toBeVisible();
+    await expect(second).toBeHidden();
+
+    await page.locator("#show-second").check();
+    await expect(first).toBeVisible();
+    await expect(second).toBeVisible();
+
+    await page.locator("#show-first").uncheck();
+    await expect(first).toBeHidden();
+    await expect(second).toBeVisible();
+  });
+
+  test("requires every authored criterion", async ({ page }) => {
+    const notes = page.locator("#approval-notes");
+
+    await expect(notes).toBeHidden();
+    await page.locator("#first-approval").check();
+    await expect(notes).toBeHidden();
+    await page.locator("#second-approval").check();
+    await expect(notes).toBeVisible();
+    await expect(notes).toBeEnabled();
+    await page.locator("#first-approval").uncheck();
+    await expect(notes).toBeHidden();
+    await expect(notes).toBeDisabled();
+  });
+
+  test("applies criteria to rendered list fieldsets", async ({ page }) => {
+    const list = page.locator("#conditional-tags");
+    const firstTag = page.locator("#conditional-tags-0");
+
+    await expect(list).toBeHidden();
+    await expect(list).toHaveAttribute("disabled", "");
+    await page.locator("#show-tags").check();
+    await expect(list).toBeVisible();
+    await expect(list).not.toHaveAttribute("disabled", "");
+    await firstTag.fill("alpha");
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).get("tags_0")),
+    ).toBe("alpha");
+    await page.locator("#show-tags").uncheck();
+    await expect(list).toBeHidden();
+    await expect(list).toHaveAttribute("disabled", "");
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).has("tags_0")),
+    ).toBe(false);
+  });
+
+  test("composes criteria with nested wizard behavior", async ({ page }) => {
+    const controller = page.locator("#include-details");
+    const detail = page.locator("#detail-notes");
+
+    await expect(controller).toBeHidden();
+    await expect(detail).toBeHidden();
+    await page.locator("#show-details").check();
+    await expect(controller).toBeVisible();
+    await expect(controller).toBeEnabled();
+    await expect(detail).toBeHidden();
+
+    await controller.check();
+    await expect(detail).toBeVisible();
+    await expect(detail).toBeEnabled();
+    await detail.fill("Rendered nested detail");
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).get("detailNotes")),
+    ).toBe("Rendered nested detail");
+
+    await page.locator("#show-details").uncheck();
+    await expect(controller).toBeHidden();
+    await expect(controller).toBeDisabled();
+    await expect(detail).toBeHidden();
+    await expect(detail).toBeDisabled();
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).has("detailNotes")),
+    ).toBe(false);
+
+    await page.locator("#show-details").check();
+    await expect(controller).toBeVisible();
+    await expect(detail).toBeVisible();
+    await expect(detail).toHaveValue("Rendered nested detail");
+  });
+
+  test("composes criteria with an embedded wizard controller", async ({
+    page,
+  }) => {
+    const mode = page.locator("#conditional-mode");
+    const notes = page.locator("#mode-notes");
+
+    await expect(mode).toBeHidden();
+    await expect(mode).toBeDisabled();
+    await expect(notes).toBeHidden();
+    await page.locator("#show-mode").check();
+    await expect(mode).toBeVisible();
+    await expect(mode).toBeEnabled();
+    await expect(notes).toBeHidden();
+
+    await mode.selectOption({ label: "Detailed" });
+    await expect(notes).toBeVisible();
+    await expect(notes).toBeEnabled();
+    await notes.fill("Embedded wizard detail");
+
+    await page.locator("#show-mode").uncheck();
+    await expect(mode).toBeHidden();
+    await expect(mode).toBeDisabled();
+    await expect(notes).toBeHidden();
+    await expect(notes).toBeDisabled();
+    expect(
+      await page
+        .locator("#app-form")
+        .evaluate((form) => new FormData(form).has("modeNotes")),
+    ).toBe(false);
+  });
+});
+
 test("syncs conditional requisitions and autofills", async ({ page }) => {
   const errors = await openFixture(page);
 
@@ -1014,22 +1185,7 @@ test("handles Apps Script success and both failure paths", async ({ page }) => {
 test("copies only valid preview content and reports clipboard failures", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    window.clipboardWrites = [];
-    window.clipboardShouldFail = false;
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText(text) {
-          if (window.clipboardShouldFail) {
-            return Promise.reject(new Error("Denied"));
-          }
-          window.clipboardWrites.push(text);
-          return Promise.resolve();
-        },
-      },
-    });
-  });
+  await stubClipboard(page);
   const errors = await openFixture(page);
 
   await page.evaluate(() => {

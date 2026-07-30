@@ -5,13 +5,16 @@
 	"license": "MIT",
 	"scripts": {
 		"build": "esbuild src/incrudible-client.js --bundle --minify --format=esm --outfile=dist/incrudible-client.min.js",
+		"coverage:instrument": "nyc instrument src .coverage-src --compact=false && esbuild .coverage-src/incrudible-client.js --bundle --format=esm --outfile=.coverage-build/incrudible-client.js",
 		"test": "npm run build && playwright test",
+		"test:coverage": "rm -rf .nyc_output .coverage-src .coverage-build coverage && npm run coverage:instrument && COVERAGE=true playwright test --project=chromium && nyc report --reporter=text --reporter=html",
 		"test:headed": "npm run build && playwright test --headed"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.55.0",
 		"esbuild": "^0.28.1",
 		"http-server": "^14.1.1",
-		"marked": "16.3.0"
+		"marked": "16.3.0",
+		"nyc": "^18.0.0"
 	}
 }
