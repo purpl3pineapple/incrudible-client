@@ -1231,9 +1231,7 @@ export const APP = {
         );
 
         return conditional.replaceAll(/!\{#([^}]+)\}/g, (token, id) => {
-          const source = Array.from(
-            control.form?.querySelectorAll("input, select, textarea") ?? [],
-          ).find((candidate) => candidate.id === id);
+          const source = control.ownerDocument?.getElementById(id);
 
           return source?.value ? source.value : token;
         });

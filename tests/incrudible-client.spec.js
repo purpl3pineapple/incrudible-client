@@ -390,9 +390,18 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
       ],
       wizards: [{ test: "the-label", wizard: source }],
     };
+    const invoker = {
+      type: "checkbox",
+      id: "invoke-interpolator",
+      label: "Invoke interpolator",
+      wizards: [{ test: true, wizard: destination }],
+    };
 
-    APP.rules.wizardRules = { interpolator: destination.wizards };
-    APP.formControls.replaceChildren(APP.renderEntries([destination]));
+    APP.rules.wizardRules = {
+      "invoke-interpolator": invoker.wizards,
+      interpolator: destination.wizards,
+    };
+    APP.formControls.replaceChildren(APP.renderEntries([invoker]));
 
     APP.formHelpers.formControls.forEach((control) => {
       control.addEventListener("input", (event) => {
@@ -409,10 +418,28 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
     APP.formHelpers.renderPreview();
   });
 
+  await expect(page.locator("#interpolator")).toBeHidden();
+  await expect(page.locator("#interpolated")).toBeHidden();
+
+  await page.locator("#invoke-interpolator").check();
+  await expect(page.locator("#interpolator")).toBeVisible();
   await page.locator("#interpolator").selectOption({ label: "the-label" });
   await expect(page.locator("#interpolated")).toBeVisible();
+  await expect(page.locator("#interpolated")).toBeEnabled();
+  await expect(page.locator("#preview-list dd")).toHaveText(
+    "Text that interpolates !{#interpolated}",
+  );
+
   await page.locator("#interpolated").fill("2026-07-30");
 
+  expect(
+    await page.evaluate(() =>
+      APP.formHelpers.resolveValueReferences(
+        "Text that interpolates !{#interpolated}",
+        document.createElement("select"),
+      ),
+    ),
+  ).toBe("Text that interpolates 2026-07-30");
   expect(await page.evaluate(() => APP.preview)).toEqual([
     [undefined, "Entry1", "Text that interpolates 2026-07-30"],
   ]);
