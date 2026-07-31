@@ -621,6 +621,11 @@ export const APP = {
    * Immutable snapshot of what the form would submit, keyed by control
    * name. Multi-value controls keep every entry.
    *
+   * Value references are resolved here, so this agrees with what the
+   * preview showed. The control's own value keeps its `!{#id}` tokens, so
+   * the form still round-trips and a re-render does not bake in whatever
+   * the references happened to resolve to.
+   *
    * @returns {Readonly<Record<string, ReadonlyArray<FormDataEntryValue>>>} Frozen values.
    */
   get values() {
@@ -638,10 +643,37 @@ export const APP = {
      * @type {Set<string>}
      */
     const names = new Set(data.keys());
+    /**
+     * One control per submitted name, used only as the resolution context:
+     * the value being resolved is passed separately, and the control just
+     * supplies the owning form and document.
+     *
+     * @type {Map<string, HTMLElement>}
+     */
+    const contexts = new Map();
+
+    for (const control of Array.from(APP.form?.elements ?? [])) {
+      if (control.name && !contexts.has(control.name)) {
+        contexts.set(control.name, control);
+      }
+    }
 
     return Object.freeze(
       Object.fromEntries(
-        Array.from(names, (name) => [name, Object.freeze(data.getAll(name))]),
+        Array.from(names, (name) => [
+          name,
+          Object.freeze(
+            data.getAll(name).map((value) => {
+              const context = contexts.get(name);
+
+              // A File carries no references to resolve, and neither does
+              // an entry whose control has since been removed.
+              return typeof value === "string" && context
+                ? APP._internals.form.resolveValueReferences(value, context)
+                : value;
+            }),
+          ),
+        ]),
       ),
     );
   },

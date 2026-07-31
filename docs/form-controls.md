@@ -898,9 +898,15 @@ fractional values freely instead of snapping to whole numbers.
 
 Workflow `select` and `listbox` option values, checkbox/radio values, and any
 control's `footnotes` may include `!{#control-id}` to insert another control's
-current value when the preview is rendered or the form is submitted. The
-reference stays in the configured value or footnote; it does not change the
-source control.
+current value. References are resolved when the preview is rendered and when
+the submitted values are read through `APP.values`. The reference stays in the
+configured value or footnote; it does not change the source control, so the
+control itself still holds the token and a re-render cannot bake in a stale
+resolution.
+
+Because the token stays on the control, reading the form directly with
+`new FormData(APP.form)` yields the raw configured string. Submit `APP.values`
+to send what the preview showed.
 
 ```json
 [

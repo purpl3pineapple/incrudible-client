@@ -236,6 +236,60 @@ test("gates a conditional token on a string test", async ({ page, app }) => {
   expect(await resolve()).toBe("From case 7");
 });
 
+test("submits interpolated values while the control keeps its token", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "text", id: "source", name: "source", label: "Source" },
+      {
+        type: "select",
+        id: "outcome",
+        name: "outcome",
+        label: "Outcome",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Referred", value: "Referred to !{#source}" },
+        ],
+      },
+      {
+        type: "checkbox",
+        id: "flagged",
+        name: "flagged",
+        label: "Flagged",
+        value: "Flagged by !{#source}",
+      },
+    ],
+  });
+
+  await page.locator("#source").fill("desk 4");
+  await page.locator("#outcome").selectOption({ label: "Referred" });
+  await page.locator("#flagged").check();
+
+  // APP.values is the submission view, so it agrees with the preview the
+  // user just approved rather than shipping the raw template.
+  expect(await page.evaluate(() => APP.values)).toEqual({
+    source: ["desk 4"],
+    outcome: ["Referred to desk 4"],
+    flagged: ["Flagged by desk 4"],
+  });
+  await expect(page.locator("#preview-list")).toContainText("Referred to desk 4");
+
+  // The control itself keeps the token, so the form round-trips and a
+  // re-render cannot bake in a stale resolution.
+  expect(
+    await page
+      .locator("#outcome")
+      .evaluate((control) => new FormData(control.form).get(control.name)),
+  ).toBe("Referred to !{#source}");
+
+  await page.locator("#source").fill("desk 9");
+  expect(await page.evaluate(() => APP.values.outcome)).toEqual([
+    "Referred to desk 9",
+  ]);
+});
+
 test("stops a circular interpolation chain without recursing", async ({
   page,
   app,
