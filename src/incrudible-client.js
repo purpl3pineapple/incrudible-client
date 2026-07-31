@@ -644,36 +644,63 @@ export const APP = {
      */
     const names = new Set(data.keys());
     /**
-     * One control per submitted name, used only as the resolution context:
-     * the value being resolved is passed separately, and the control just
-     * supplies the owning form and document.
+     * The control behind each submitted name — the one actually holding a
+     * value, since a radio group or repeated checkbox has several sharing
+     * the name and only one produced the entry. It supplies both the
+     * resolution context and the footnote rules.
      *
      * @type {Map<string, HTMLElement>}
      */
     const contexts = new Map();
 
     for (const control of Array.from(APP.form?.elements ?? [])) {
-      if (control.name && !contexts.has(control.name)) {
+      if (!control.name) {
+        continue;
+      }
+
+      const chosen = contexts.get(control.name);
+
+      if (!chosen || !APP._internals.getValue(chosen).length) {
         contexts.set(control.name, control);
       }
     }
 
     return Object.freeze(
       Object.fromEntries(
-        Array.from(names, (name) => [
-          name,
-          Object.freeze(
-            data.getAll(name).map((value) => {
-              const context = contexts.get(name);
+        Array.from(names, (name) => {
+          /**
+           * The control that produced this entry, or undefined once it has
+           * been removed from the document.
+           *
+           * @type {HTMLElement | undefined}
+           */
+          const context = contexts.get(name);
+          /**
+           * The name's footnote, resolved once and appended to each of its
+           * values — the same annotation the preview shows.
+           *
+           * @type {string}
+           */
+          const footnote = context ? getFootnote(context) : "";
 
-              // A File carries no references to resolve, and neither does
-              // an entry whose control has since been removed.
-              return typeof value === "string" && context
-                ? APP._internals.form.resolveValueReferences(value, context)
-                : value;
-            }),
-          ),
-        ]),
+          return [
+            name,
+            Object.freeze(
+              data.getAll(name).map((value) => {
+                // A File carries no references to resolve, and neither
+                // does an entry whose control has since been removed.
+                if (typeof value !== "string" || !context) {
+                  return value;
+                }
+
+                const resolved =
+                  APP._internals.form.resolveValueReferences(value, context);
+
+                return footnote ? `${resolved} (${footnote})` : resolved;
+              }),
+            ),
+          ];
+        }),
       ),
     );
   },
@@ -2736,19 +2763,7 @@ export const APP = {
            *
            * @type {string | undefined}
            */
-          const footnote = (
-            APP.rules.footnoteRules[control.id] ??
-            APP.rules.footnoteRules[control.name]
-          )
-            ?.filter(
-              (r) =>
-                APP._internals.match(
-                  r.test,
-                  APP._internals.getValue(control),
-                ) && APP._internals.when(r.when, control.form),
-            )
-            .map((r) => this.resolveValueReferences(r.footnote, control))
-            .join(" ");
+          const footnote = getFootnote(control);
 
           if (footnote) {
             value = `${value} (${footnote})`;
@@ -3628,6 +3643,32 @@ function createLabelToolbar({ label, hint }) {
   }
 
   return toolbar;
+}
+
+/**
+ * The resolved footnote a control contributes, or an empty string when no
+ * rule applies. Rules are keyed by the control's id first and then by its
+ * name, and every rule that passes contributes, joined in authored order.
+ *
+ * @param {HTMLElement} control - The control the rules are keyed to.
+ * @returns {string} The resolved footnote.
+ */
+function getFootnote(control) {
+  return (
+    (
+      APP.rules.footnoteRules[control.id] ??
+      APP.rules.footnoteRules[control.name]
+    )
+      ?.filter(
+        (r) =>
+          APP._internals.match(r.test, APP._internals.getValue(control)) &&
+          APP._internals.when(r.when, control.form),
+      )
+      .map((r) =>
+        APP._internals.form.resolveValueReferences(r.footnote, control),
+      )
+      .join(" ") ?? ""
+  );
 }
 
 /**

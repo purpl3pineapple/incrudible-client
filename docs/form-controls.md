@@ -906,7 +906,13 @@ resolution.
 
 Because the token stays on the control, reading the form directly with
 `new FormData(APP.form)` yields the raw configured string. Submit `APP.values`
-to send what the preview showed.
+to send what the preview showed: it resolves references and appends any
+matching `footnotes` as `value (footnote)`, exactly as the preview renders
+them.
+
+Rule tests match a dropdown by its option **label**, while the submitted value
+and the preview use the option's **value**. A rule therefore tests against what
+the user sees, not what is sent.
 
 ```json
 [

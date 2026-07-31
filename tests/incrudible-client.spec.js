@@ -290,6 +290,45 @@ test("submits interpolated values while the control keeps its token", async ({
   ]);
 });
 
+test("submits footnotes alongside the value that earned them", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "text", id: "reviewer", name: "reviewer", label: "Reviewer" },
+      ...["first", "second"].map((value) => ({
+        type: "radio",
+        id: `${value}-option`,
+        name: "option",
+        label: `${value} option`,
+        value,
+      })),
+    ],
+    rules: {
+      footnoteRules: {
+        option: [{ test: "second", footnote: "checked by !{#reviewer}" }],
+      },
+    },
+  });
+
+  await page.locator("#reviewer").fill("Ada");
+  await page.locator("#first-option").check();
+
+  // The rule tests "second", so the first option earns no footnote.
+  expect(await page.evaluate(() => APP.values.option)).toEqual(["first"]);
+
+  // A radio group shares one name across several controls; the footnote
+  // comes from whichever is actually checked, and matches the preview.
+  await page.locator("#second-option").check();
+  expect(await page.evaluate(() => APP.values.option)).toEqual([
+    "second (checked by Ada)",
+  ]);
+  await expect(page.locator("#preview-list")).toContainText(
+    "second (checked by Ada)",
+  );
+});
+
 test("stops a circular interpolation chain without recursing", async ({
   page,
   app,
