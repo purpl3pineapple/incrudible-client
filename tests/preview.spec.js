@@ -1,9 +1,7 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, mountSchema, openFixture } = require("./helpers");
+import { expect, test } from "./setup.js";
+import { mountSchema } from "./helpers/index.js";
 
-test("groups preview rows under their fieldset legends", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("groups preview rows under their fieldset legends", async ({ page, app }) => {
   await mountSchema(page, {
     schema: [
       {
@@ -45,14 +43,12 @@ test("groups preview rows under their fieldset legends", async ({ page }) => {
       .locator("#preview-list .preview-group")
       .evaluateAll((nodes) => nodes.map((node) => node.textContent)),
   ).toEqual(["Customer", "Resolution"]);
-  expectCleanPage(errors);
 });
 
 test("renders list entries as a single bulleted preview row", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "list", id: "tags", name: "tags", label: "Tags" },
@@ -80,14 +76,12 @@ test("renders list entries as a single bulleted preview row", async ({
   });
   expect(await page.evaluate(() => APP.preview)).toEqual([]);
   await expect(page.locator("#copy-preview")).toBeDisabled();
-  expectCleanPage(errors);
 });
 
 test("falls back to the list name when no label text is rendered", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [{ type: "list", id: "tags", name: "tags", label: "Tags" }],
   });
@@ -101,14 +95,12 @@ test("falls back to the list name when no label text is rendered", async ({
   expect(await page.evaluate(() => APP.preview)).toEqual([
     [undefined, "tags", "- alpha"],
   ]);
-  expectCleanPage(errors);
 });
 
 test("previews a checked boolean checkbox as its label alone", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "urgent", name: "urgent", label: "Urgent" },
@@ -138,14 +130,12 @@ test("previews a checked boolean checkbox as its label alone", async ({
   const terms = page.locator("#preview-list dt");
   await expect(terms).toHaveCount(1);
   await expect(terms).toHaveText("Valued");
-  expectCleanPage(errors);
 });
 
 test("joins multi-select values and skips empty selections", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       {
@@ -183,14 +173,12 @@ test("joins multi-select values and skips empty selections", async ({
     [undefined, "Regions", "north, south"],
     [undefined, "Priority", "high"],
   ]);
-  expectCleanPage(errors);
 });
 
 test("appends footnotes matched by control name and gated by dependencies", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "text", id: "reviewer", name: "reviewer", label: "Reviewer" },
@@ -233,14 +221,12 @@ test("appends footnotes matched by control name and gated by dependencies", asyn
   await page.evaluate(() => APP.formHelpers.renderPreview());
   await expect(page.locator("#preview-list")).toContainText("X-1");
   await expect(page.locator("#preview-list")).not.toContainText("X-1 (");
-  expectCleanPage(errors);
 });
 
 test("excludes unnamed and disabled controls from the preview", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "text", id: "named", name: "named", label: "Named" },
@@ -270,14 +256,12 @@ test("excludes unnamed and disabled controls from the preview", async ({
   expect(await page.evaluate(() => APP.preview)).toEqual([
     [undefined, "Named", "kept"],
   ]);
-  expectCleanPage(errors);
 });
 
 test("enables the copy button only while the preview has rows", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [{ type: "text", id: "note", name: "note", label: "Note" }],
   });
@@ -290,5 +274,4 @@ test("enables the copy button only while the preview has rows", async ({
   await page.locator("#note").fill("");
   await expect(page.locator("#copy-preview")).toBeDisabled();
   expect(await page.evaluate(() => APP.charCount)).toBe(0);
-  expectCleanPage(errors);
 });

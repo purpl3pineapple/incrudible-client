@@ -86,4 +86,4 @@ const feedbackWorkflow = {
   },
 };
 
-module.exports = { feedbackWorkflow };
+export { feedbackWorkflow };

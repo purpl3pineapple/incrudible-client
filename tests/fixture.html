@@ -139,13 +139,6 @@
 				window.appEvents.push(["workflow:loaded", detail]),
 		});
 
-		window.mountWorkflow = ({ schema, rules = {} }) => {
-			APP.rules.criteriaRules = rules.criteria || {};
-			APP.rules.wizardRules = rules.wizards || {};
-			APP.formControls.replaceChildren(APP.renderEntries(schema));
-			APP.formHelpers.syncWizards();
-			APP.formHelpers.renderPreview();
-		};
 		document.documentElement.dataset.ready = "true";
 	</script>
 </body>

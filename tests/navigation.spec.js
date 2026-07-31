@@ -1,11 +1,9 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, openFixture } = require("./helpers");
+import { expect, test } from "./setup.js";
 
 test("moves tab selection with the arrow, home, and end keys", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   const formTab = page.getByRole("tab", { name: "New Submission" });
   const recordsTab = page.getByRole("tab", { name: "My Submissions" });
 
@@ -38,12 +36,9 @@ test("moves tab selection with the arrow, home, and end keys", async ({
       .getByRole("tab")
       .evaluateAll((tabs) => tabs.map((tab) => tab.tabIndex)),
   ).toEqual([0, -1]);
-  expectCleanPage(errors);
 });
 
-test("ignores keys the tablist does not handle", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("ignores keys the tablist does not handle", async ({ page, app }) => {
   const formTab = page.getByRole("tab", { name: "New Submission" });
   await formTab.focus();
   await formTab.press("ArrowDown");
@@ -51,14 +46,12 @@ test("ignores keys the tablist does not handle", async ({ page }) => {
 
   await expect(formTab).toBeFocused();
   await expect(formTab).toHaveAttribute("aria-selected", "true");
-  expectCleanPage(errors);
 });
 
 test("toggles dropdowns and closes them on outside click or Escape", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   const dropdowns = page.locator(".nav-dropdown");
   const first = dropdowns.nth(0);
   const second = dropdowns.nth(1);
@@ -86,14 +79,12 @@ test("toggles dropdowns and closes them on outside click or Escape", async ({
   await expect(second).toHaveClass(/open/);
   await page.keyboard.press("Escape");
   await expect(second).not.toHaveClass(/open/);
-  expectCleanPage(errors);
 });
 
 test("forces dropdown state through the explicit toggle argument", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   expect(
     await page.evaluate(() => {
       const [dropdown] = APP.dropdowns;
@@ -113,25 +104,20 @@ test("forces dropdown state through the explicit toggle argument", async ({
     forcedClosed: false,
     expanded: "false",
   });
-  expectCleanPage(errors);
 });
 
-test("suppresses navigation for javascript: links", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("suppresses navigation for javascript: links", async ({ page, app }) => {
   const url = page.url();
   await page.locator("#sidenav .nav-dropdown").first().locator("a").click();
 
   expect(page.url()).toBe(url);
   await expect(page.locator("html")).toHaveAttribute("data-ready", "true");
-  expectCleanPage(errors);
 });
 
 test("opens the side navigation from every registered controller", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   const sidenav = page.locator("#sidenav");
   await expect(sidenav).not.toHaveClass(/open/);
 
@@ -154,12 +140,9 @@ test("opens the side navigation from every registered controller", async ({
   expect(
     await page.evaluate(() => APP.activeFlowLink?.dataset.path),
   ).toBe("/review");
-  expectCleanPage(errors);
 });
 
-test("expands and collapses the top navigation", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("expands and collapses the top navigation", async ({ page, app }) => {
   const topnav = page.locator("#topnav");
   await expect(topnav).not.toHaveClass(/expanded/);
 
@@ -168,12 +151,9 @@ test("expands and collapses the top navigation", async ({ page }) => {
 
   await page.locator("#topnav-collapse-toggle").click();
   await expect(topnav).not.toHaveClass(/expanded/);
-  expectCleanPage(errors);
 });
 
-test("opens and closes the notepad", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("opens and closes the notepad", async ({ page, app }) => {
   const notepad = page.locator("#notepad");
   await expect(notepad).toHaveClass(/closed/);
 
@@ -182,12 +162,9 @@ test("opens and closes the notepad", async ({ page }) => {
 
   await page.locator("#close-notepad").click();
   await expect(notepad).toHaveClass(/closed/);
-  expectCleanPage(errors);
 });
 
-test("drags the notepad by its handle", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("drags the notepad by its handle", async ({ page, app }) => {
   await page.locator("#open-notepad").click();
 
   const handle = page.locator("#notepad-handle");
@@ -216,27 +193,23 @@ test("drags the notepad by its handle", async ({ page }) => {
   expect(await page.evaluate(() => APP.notepad.style.left)).toBe(
     placement.left,
   );
-  expectCleanPage(errors);
 });
 
 test("does not start a drag from the notepad close button", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await page.locator("#open-notepad").click();
   await page.locator("#close-notepad").click();
 
   await expect(page.locator("#notepad")).toHaveClass(/closed/);
   expect(await page.evaluate(() => APP.notepad.style.left)).toBe("");
-  expectCleanPage(errors);
 });
 
 test("ignores non-primary pointer buttons on the notepad handle", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await page.locator("#open-notepad").click();
   const box = await page.locator("#notepad-handle").boundingBox();
 
@@ -246,5 +219,4 @@ test("ignores non-primary pointer buttons on the notepad handle", async ({
   await page.mouse.up({ button: "right" });
 
   expect(await page.evaluate(() => APP.notepad.style.left)).toBe("");
-  expectCleanPage(errors);
 });

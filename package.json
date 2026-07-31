@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "Shared client-side JS framework for InCRUDibly-based Apps Script apps, served via jsDelivr's GitHub CDN mode.",
 	"license": "MIT",
+	"type": "module",
 	"scripts": {
 		"build": "esbuild src/incrudible-client.js --bundle --minify --format=esm --outfile=dist/incrudible-client.min.js",
 		"coverage:instrument": "nyc instrument src .coverage-src --compact=false && esbuild .coverage-src/incrudible-client.js --bundle --format=esm --outfile=.coverage-build/incrudible-client.js",

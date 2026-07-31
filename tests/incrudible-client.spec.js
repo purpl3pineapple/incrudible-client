@@ -1,22 +1,24 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, openFixture, stubClipboard } = require("./helpers");
-const { criteriaWorkflow } = require("./fixtures/criteria-workflow");
+import { expect, test } from "./setup.js";
+import { mountSchema } from "./helpers/index.js";
+import {
+  autofillWorkflow,
+  conditionalValuesWorkflow,
+  criteriaWorkflow,
+  nestedCheckboxWorkflow,
+  nestedInterpolationWorkflow,
+  reviewWorkflow,
+} from "./fixtures/index.js";
 
-test("loads and initializes the production bundle", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("loads and initializes the production bundle", async ({ page, app }) => {
   const exports = await page.evaluate(() => ({
     hasApp: typeof window.APP?.init === "function",
     hasDays: typeof window.DAYS?.daysElapsed === "function",
   }));
 
   expect(exports).toEqual({ hasApp: true, hasDays: true });
-  expectCleanPage(errors);
 });
 
-test("handles date policies and image upload validation", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("handles date policies and image upload validation", async ({ page, app }) => {
   const result = await page.evaluate(async () => {
     const holiday = (date) => date === "2026-07-20";
     const dates = {
@@ -86,126 +88,16 @@ test("handles date policies and image upload validation", async ({ page }) => {
       base64: "aGVsbG8=",
     },
   });
-  expectCleanPage(errors);
 });
 
 test("runs a rendered workflow with rules, validation, and preview", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await page.evaluate(() => {
-    const schema = [
-      {
-        type: "select",
-        id: "outcome",
-        name: "outcome",
-        label: "Outcome",
-        constraints: { required: true },
-        options: [
-          { label: "Choose", value: "" },
-          {
-            label: "Customer unavailable",
-            value: "Customer unavailable on !{#review-date}",
-          },
-        ],
-        wizards: [
-          {
-            test: "Customer unavailable",
-            wizard: {
-              type: "text",
-              id: "outcome-reason",
-              name: "outcomeReason",
-              label: "Outcome Reason",
-            },
-          },
-        ],
-      },
-      {
-        type: "date",
-        id: "review-date",
-        label: "Review Date",
-        constraints: { required: true },
-      },
-      {
-        type: "checkbox",
-        id: "urgent",
-        name: "urgent",
-        label: "Urgent",
-        alerts: [
-          {
-            test: true,
-            alert: { variant: "warning", message: "Escalate immediately." },
-          },
-        ],
-        modals: [
-          {
-            test: true,
-            modal: {
-              type: "confirm",
-              header: "Confirm escalation",
-              message: "Continue with urgent handling?",
-              variant: "warning",
-            },
-          },
-        ],
-        wizards: [
-          {
-            test: true,
-            wizard: {
-              type: "text",
-              id: "reason",
-              name: "reason",
-              label: "Escalation Reason",
-              constraints: { required: true },
-            },
-          },
-        ],
-      },
-      {
-        type: "text",
-        id: "contact",
-        name: "contact",
-        label: "Escalation Contact",
-        criteria: [["urgent", true]],
-      },
-    ];
-
     APP.workflowLabel = "Review";
-    APP.rules.alertRules = { urgent: schema[2].alerts };
-    APP.rules.modalRules = { urgent: schema[2].modals };
-    APP.rules.wizardRules = {
-      outcome: schema[0].wizards,
-      urgent: schema[2].wizards,
-    };
-    APP.rules.criteriaRules = { contact: schema[3].criteria };
-    APP.rules.footnoteRules = {
-      outcome: [
-        {
-          test: "Customer unavailable",
-          footnote: "reviewed !{#review-date}",
-        },
-      ],
-    };
-    APP.formControls.replaceChildren(APP.renderEntries(schema));
-
-    APP.formHelpers.formControls.forEach((control) => {
-      control.addEventListener("input", (event) => {
-        APP.formHelpers.syncWizards(event);
-        APP.formHelpers.renderPreview();
-      });
-      control.addEventListener("change", (event) => {
-        APP.formHelpers.syncWizards(event);
-        APP.formHelpers.syncModals(event);
-        APP.formHelpers.syncAlerts();
-        APP.formHelpers.renderPreview();
-      });
-    });
-
-    APP.formHelpers.syncWizards();
-    APP.formHelpers.syncAlerts();
-    APP.formHelpers.renderPreview();
   });
+  await mountSchema(page, reviewWorkflow);
 
   await expect(page.locator("#reason")).toBeDisabled();
   await expect(page.locator("#contact")).toBeDisabled();
@@ -259,40 +151,12 @@ test("runs a rendered workflow with rules, validation, and preview", async ({
     .evaluate((form) => [...new FormData(form)].map(([name]) => name));
   expect(submittedNames).not.toContain("reason");
   expect(submittedNames).not.toContain("contact");
-  expectCleanPage(errors);
 });
 
-test("resolves conditional value references", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await page.evaluate(() => {
-    APP.formControls.replaceChildren(
-      APP.renderEntries([
-        { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-        { type: "text", id: "source", name: "source", label: "Source" },
-        {
-          type: "select",
-          id: "conditional-select",
-          name: "conditionalSelect",
-          label: "Conditional Select",
-          options: [
-            { label: "Choose", value: "" },
-            {
-              label: "Direct",
-              value: "Direct !{#source}",
-            },
-            {
-              label: "Conditional",
-              value: '!{[["gate",true],"From !{#source}"]}',
-            },
-            {
-              label: "Single quoted conditional",
-              value: "!{[['gate',true],'From !{#source}']}",
-            },
-          ],
-        },
-      ]),
-    );
+test("resolves conditional value references", async ({ page, app }) => {
+  await mountSchema(page, {
+    ...conditionalValuesWorkflow,
+    listeners: false,
   });
 
   const inactive = await page.evaluate(() =>
@@ -343,74 +207,15 @@ test("resolves conditional value references", async ({ page }) => {
   await page.evaluate(() => APP.formHelpers.renderPreview());
 
   await expect(page.locator("#preview-list")).toContainText("From case 123");
-  expectCleanPage(errors);
 });
 
 test("keeps a nameless wizard source out of its interpolated preview", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await page.evaluate(() => {
-    const nestedSource = {
-      type: "date",
-      id: "nested-interpolated",
-      label: "Nested interpolated",
-    };
-    const source = {
-      type: "select",
-      id: "interpolated",
-      label: "Interpolated",
-      options: [
-        { label: "Choose", value: "" },
-        {
-          label: "nested-label",
-          value: "its wizard interpolates !{#nested-interpolated}",
-        },
-      ],
-      wizards: [{ test: "nested-label", wizard: nestedSource }],
-    };
-    const destination = {
-      type: "select",
-      id: "interpolator",
-      name: "entry1",
-      label: "Entry1",
-      options: [
-        { label: "Choose", value: "" },
-        {
-          label: "the-label",
-          value: "Text that interpolates !{#interpolated}",
-        },
-      ],
-      wizards: [{ test: "the-label", wizard: source }],
-    };
-    const invoker = {
-      type: "checkbox",
-      id: "invoke-interpolator",
-      label: "Invoke interpolator",
-      wizards: [{ test: true, wizard: destination }],
-    };
-
-    APP.rules.wizardRules = {
-      "invoke-interpolator": invoker.wizards,
-      interpolator: destination.wizards,
-      interpolated: source.wizards,
-    };
-    APP.formControls.replaceChildren(APP.renderEntries([invoker]));
-
-    APP.formHelpers.formControls.forEach((control) => {
-      control.addEventListener("input", (event) => {
-        APP.formHelpers.syncWizards(event);
-        APP.formHelpers.renderPreview();
-      });
-      control.addEventListener("change", (event) => {
-        APP.formHelpers.syncWizards(event);
-        APP.formHelpers.renderPreview();
-      });
-    });
-
-    APP.formHelpers.syncWizards();
-    APP.formHelpers.renderPreview();
+  await mountSchema(page, {
+    ...nestedInterpolationWorkflow,
+    syncOnInput: true,
   });
 
   await expect(page.locator("#interpolator")).toBeHidden();
@@ -455,61 +260,10 @@ test("keeps a nameless wizard source out of its interpolated preview", async ({
   await expect(page.locator("#preview-list")).not.toContainText(
     "Nested interpolated:",
   );
-  expectCleanPage(errors);
 });
 
-test("toggles checkbox wizard containers on change", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await page.evaluate(() => {
-    const schema = [
-      {
-        type: "checkbox",
-        id: "allow-details",
-        name: "allowDetails",
-        label: "Allow details",
-        checked: true,
-      },
-      {
-        type: "checkbox",
-        id: "include-details",
-        name: "includeDetails",
-        label: "Include details",
-        width: 2,
-        criteria: [["allowDetails", true]],
-        wizards: [
-          {
-            test: true,
-            wizard: {
-              type: "checkbox",
-              id: "include-detail-notes",
-              name: "includeDetailNotes",
-              label: "Include detail notes",
-              wizards: [
-                {
-                  test: true,
-                  wizard: {
-                    type: "text",
-                    id: "details",
-                    name: "details",
-                    label: "Details",
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    ];
-
-    APP.rules.wizardRules = {
-      includeDetails: schema[1].wizards,
-      includeDetailNotes: schema[1].wizards[0].wizard.wizards,
-    };
-    APP.rules.criteriaRules = { includeDetails: schema[1].criteria };
-    APP.formControls.replaceChildren(APP.renderEntries(schema));
-    APP.formHelpers.syncWizards();
-  });
+test("toggles checkbox wizard containers on change", async ({ page, app }) => {
+  await mountSchema(page, { ...nestedCheckboxWorkflow, listeners: false });
 
   const container = page.locator(
     'label.form-control[for="include-details"] + fieldset.wizard',
@@ -544,19 +298,14 @@ test("toggles checkbox wizard containers on change", async ({ page }) => {
   await expect(nestedContainer).toHaveAttribute("hidden", "");
   await expect(nestedContainer).toBeHidden();
   await expect(page.locator("#include-detail-notes")).not.toBeVisible();
-  expectCleanPage(errors);
 });
 
 test.describe("criteria workflow", () => {
-  test.beforeEach(async ({ page }) => {
-    await openFixture(page);
-    await page.evaluate(
-      (workflow) => window.mountWorkflow(workflow),
-      criteriaWorkflow,
-    );
+  test.beforeEach(async ({ page, app }) => {
+    await mountSchema(page, { ...criteriaWorkflow, listeners: false });
   });
 
-  test("renders the schema as actual form elements", async ({ page }) => {
+  test("renders the schema as actual form elements", async ({ page, app }) => {
     await expect(page.locator('#show-options[type="checkbox"]')).toHaveCount(1);
     await expect(page.locator('input[type="radio"][name="option"]')).toHaveCount(
       3,
@@ -574,7 +323,7 @@ test.describe("criteria workflow", () => {
     await expect(page.locator('input#mode-notes[type="text"]')).toHaveCount(1);
   });
 
-  test("applies one criteria rule to every matching element", async ({ page }) => {
+  test("applies one criteria rule to every matching element", async ({ page, app }) => {
     const options = page.locator('input[type="radio"][name="option"]');
 
     await expect(options).toHaveCount(3);
@@ -608,7 +357,7 @@ test.describe("criteria workflow", () => {
     ).toBe(false);
   });
 
-  test("keeps id-owned criteria independent when names match", async ({ page }) => {
+  test("keeps id-owned criteria independent when names match", async ({ page, app }) => {
     const first = page.locator("#first-detail");
     const second = page.locator("#second-detail");
 
@@ -628,7 +377,7 @@ test.describe("criteria workflow", () => {
     await expect(second).toBeVisible();
   });
 
-  test("requires every authored criterion", async ({ page }) => {
+  test("requires every authored criterion", async ({ page, app }) => {
     const notes = page.locator("#approval-notes");
 
     await expect(notes).toBeHidden();
@@ -642,7 +391,7 @@ test.describe("criteria workflow", () => {
     await expect(notes).toBeDisabled();
   });
 
-  test("applies criteria to rendered list fieldsets", async ({ page }) => {
+  test("applies criteria to rendered list fieldsets", async ({ page, app }) => {
     const list = page.locator("#conditional-tags");
     const firstTag = page.locator("#conditional-tags-0");
 
@@ -667,7 +416,7 @@ test.describe("criteria workflow", () => {
     ).toBe(false);
   });
 
-  test("composes criteria with nested wizard behavior", async ({ page }) => {
+  test("composes criteria with nested wizard behavior", async ({ page, app }) => {
     const controller = page.locator("#include-details");
     const detail = page.locator("#detail-notes");
 
@@ -707,6 +456,7 @@ test.describe("criteria workflow", () => {
 
   test("composes criteria with an embedded wizard controller", async ({
     page,
+    app,
   }) => {
     const mode = page.locator("#conditional-mode");
     const notes = page.locator("#mode-notes");
@@ -737,84 +487,11 @@ test.describe("criteria workflow", () => {
   });
 });
 
-test("syncs conditional requisitions and autofills", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await page.evaluate(() => {
-    const schema = [
-      {
-        type: "select",
-        id: "mode",
-        name: "mode",
-        label: "Mode",
-        options: [
-          { label: "Choose", value: "" },
-          { label: "Auto", value: "auto" },
-          { label: "Required", value: "required" },
-        ],
-      },
-      { type: "text", id: "source", name: "source", label: "Source" },
-      {
-        type: "text",
-        id: "conditional-note",
-        name: "conditionalNote",
-        label: "Conditional Note",
-        constraints: { required: true },
-      },
-      {
-        type: "text",
-        id: "autofilled-note",
-        name: "autofilledNote",
-        label: "Autofilled Note",
-      },
-      {
-        type: "select",
-        id: "autofilled-select",
-        name: "autofilledSelect",
-        label: "Autofilled Select",
-        options: [
-          { label: "Choose", value: "" },
-          { label: "Auto", value: "auto" },
-        ],
-      },
-      {
-        type: "textarea",
-        id: "autofilled-textarea",
-        name: "autofilledTextarea",
-        label: "Autofilled Textarea",
-      },
-      {
-        type: "checkbox",
-        id: "autofilled-checkbox",
-        name: "autofilledCheckbox",
-        label: "Autofilled Checkbox",
-      },
-    ];
-
-    APP.rules.requisitionRules = {
-      conditionalNote: [["mode", "Required"]],
-    };
-    APP.rules.autofillRules = {
-      autofilledNote: [
-        { value: "First !{#source}", when: [["mode", "Auto"]] },
-        { value: "Ignored", when: [["mode", "Auto"]] },
-      ],
-      autofilledSelect: [{ value: "auto", when: [["mode", "Auto"]] }],
-      autofilledTextarea: [{ value: "Ignored", when: [["mode", "Auto"]] }],
-      autofilledCheckbox: [{ value: "true", when: [["mode", "Auto"]] }],
-    };
-    APP.formControls.replaceChildren(APP.renderEntries(schema));
-
-    APP.formHelpers.formControls.forEach((control) => {
-      control.addEventListener("input", (event) =>
-        APP.formHelpers.syncWizards(event),
-      );
-      control.addEventListener("change", (event) =>
-        APP.formHelpers.syncWizards(event),
-      );
-    });
-
-    APP.formHelpers.syncWizards();
+test("syncs conditional requisitions and autofills", async ({ page, app }) => {
+  await mountSchema(page, {
+    ...autofillWorkflow,
+    preview: false,
+    syncOnInput: true,
   });
 
   await expect(page.locator("#conditional-note")).not.toHaveAttribute(
@@ -845,12 +522,9 @@ test("syncs conditional requisitions and autofills", async ({ page }) => {
   expect(
     await page.locator("#app-form").evaluate((form) => form.checkValidity()),
   ).toBe(true);
-  expectCleanPage(errors);
 });
 
-test("does not render an empty checkbox wizard shell", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("does not render an empty checkbox wizard shell", async ({ page, app }) => {
   await page.evaluate(() => {
     const schema = [
       {
@@ -898,12 +572,9 @@ test("does not render an empty checkbox wizard shell", async ({ page }) => {
   await page.evaluate(() => APP.formHelpers.syncWizards());
   await expect(caller).toHaveAttribute("hidden", "");
   await expect(shell).toHaveCount(0);
-  expectCleanPage(errors);
 });
 
-test("exposes immutable preview state", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("exposes immutable preview state", async ({ page, app }) => {
   const state = await page.evaluate(() => {
     APP.formControls.replaceChildren(
       APP.renderEntries([
@@ -954,14 +625,12 @@ test("exposes immutable preview state", async ({ page }) => {
     charCount: state.snapshots.copyTextLength,
     copyTextLength: state.snapshots.copyTextLength,
   });
-  expectCleanPage(errors);
 });
 
 test("keeps dynamic lists correctly indexed and resets extra rows", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await page.evaluate(() => {
     APP.formControls.replaceChildren(
       APP.renderEntries([
@@ -997,14 +666,12 @@ test("keeps dynamic lists correctly indexed and resets extra rows", async ({
 
   await page.locator("#app-form").evaluate((form) => form.reset());
   await expect(page.locator("#tags input")).toHaveCount(1);
-  expectCleanPage(errors);
 });
 
 test("synchronizes theme, loading, tabs, and current-day records", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await page.locator("#theme-toggle").check();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(
@@ -1039,12 +706,9 @@ test("synchronizes theme, loading, tabs, and current-day records", async ({
     );
   }, records);
   expect(await page.evaluate(() => APP.records)).toEqual(records);
-  expectCleanPage(errors);
 });
 
-test("publishes dialog outcomes and dismisses messages", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("publishes dialog outcomes and dismisses messages", async ({ page, app }) => {
   await page.evaluate(() => {
     window.dialogEvents = [];
     APP.subscribe("confirm:accepted", (detail) =>
@@ -1088,12 +752,9 @@ test("publishes dialog outcomes and dismisses messages", async ({ page }) => {
   );
   await page.locator("#message-modal-dismiss-button").click();
   await expect(page.locator("#message-modal")).not.toHaveAttribute("open", "");
-  expectCleanPage(errors);
 });
 
-test("handles Apps Script success and both failure paths", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("handles Apps Script success and both failure paths", async ({ page, app }) => {
   const installServer = (outcome) =>
     page.evaluate((value) => {
       window.serverCall = null;
@@ -1179,15 +840,12 @@ test("handles Apps Script success and both failure paths", async ({ page }) => {
     "Couldn't save: Offline",
   );
   await expect(page.locator("#app-overlay")).not.toHaveClass(/active/);
-  expectCleanPage(errors);
 });
 
 test("copies only valid preview content and reports clipboard failures", async ({
   page,
+  app,
 }) => {
-  await stubClipboard(page);
-  const errors = await openFixture(page);
-
   await page.evaluate(() => {
     APP.workflowLabel = "Review";
     APP.formControls.replaceChildren(
@@ -1229,5 +887,4 @@ test("copies only valid preview content and reports clipboard failures", async (
   await expect(page.getByRole("status").last()).toHaveText(
     "Couldn't copy to clipboard.",
   );
-  expectCleanPage(errors);
 });

@@ -1,50 +1,14 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, openFixture } = require("./helpers");
+import { expect, test } from "./setup.js";
+import { describeControl, renderSchema } from "./helpers/index.js";
 
 // Renders a schema and returns a serialized description of the result,
 // keeping the assertions in Node rather than spreading evaluate() calls
 // across every case.
-const render = (page, schema) =>
-  page.evaluate((entries) => {
-    APP.formControls.replaceChildren(APP.renderEntries(entries));
-    return APP.formControls.innerHTML;
-  }, schema);
-
-const describeControl = (page, id) =>
-  page.evaluate((controlId) => {
-    const control = document.getElementById(controlId);
-
-    return {
-      tag: control.tagName,
-      type: control.type,
-      dataType: control.dataset.type ?? null,
-      value: control.value,
-      name: control.name,
-      className: control.className,
-      required: control.required,
-      disabled: control.disabled,
-      readOnly: "readOnly" in control ? control.readOnly : null,
-      minLength: "minLength" in control ? control.minLength : null,
-      maxLength: "maxLength" in control ? control.maxLength : null,
-      pattern: control.getAttribute("pattern"),
-      min: control.getAttribute("min"),
-      max: control.getAttribute("max"),
-      step: control.getAttribute("step"),
-      placeholder: control.getAttribute("placeholder"),
-      autocomplete: control.getAttribute("autocomplete"),
-      inputMode: control.getAttribute("inputmode"),
-      accept: control.getAttribute("accept"),
-      multiple: control.multiple ?? null,
-      list: control.getAttribute("list"),
-    };
-  }, id);
-
 test("maps every scalar entry type onto the right input type", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(
+  await renderSchema(
     page,
     [
       "text",
@@ -89,15 +53,13 @@ test("maps every scalar entry type onto the right input type", async ({
     "field-currency": "text",
     "field-image": "file",
   });
-  expectCleanPage(errors);
 });
 
 test("marks currency and number inputs for downstream formatting", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     { type: "currency", id: "amount", name: "amount", label: "Amount" },
     { type: "number", id: "count", name: "count", label: "Count" },
     { type: "text", id: "plain", name: "plain", label: "Plain" },
@@ -114,7 +76,7 @@ test("marks currency and number inputs for downstream formatting", async ({
   expect((await describeControl(page, "plain")).dataType).toBeNull();
 
   // An explicit inputMode wins over the currency default.
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "currency",
       id: "amount",
@@ -131,15 +93,13 @@ test("marks currency and number inputs for downstream formatting", async ({
       APP.formHelpers.currencyInputs.map((control) => control.id),
     ),
   ).toEqual(["amount"]);
-  expectCleanPage(errors);
 });
 
 test("applies constraints and presentation attributes to inputs", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "text",
       id: "code",
@@ -200,15 +160,13 @@ test("applies constraints and presentation attributes to inputs", async ({
   await expect(page.locator('label[for="score"]')).toHaveClass(
     "form-control w-1",
   );
-  expectCleanPage(errors);
 });
 
 test("configures image inputs for single and multiple selection", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "image",
       id: "proof",
@@ -230,15 +188,13 @@ test("configures image inputs for single and multiple selection", async ({
   // A file input can't carry a default value; it must be dropped.
   expect(proof.value).toBe("");
   expect((await describeControl(page, "gallery")).multiple).toBe(true);
-  expectCleanPage(errors);
 });
 
 test("renders a datalist for entries that supply suggestions", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "text",
       id: "team",
@@ -259,13 +215,10 @@ test("renders a datalist for entries that supply suggestions", async ({
     ),
   ).toEqual(["Alpha", "Bravo", "Charlie"]);
   expect((await describeControl(page, "freeform")).list).toBeNull();
-  expectCleanPage(errors);
 });
 
-test("renders textareas with their own constraint set", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+test("renders textareas with their own constraint set", async ({ page, app }) => {
+  await renderSchema(page, [
     {
       type: "textarea",
       id: "summary",
@@ -292,7 +245,7 @@ test("renders textareas with their own constraint set", async ({ page }) => {
   await expect(page.locator("#summary")).toHaveAttribute("rows", "6");
 
   // A textarea never becomes a wizard container even when wizards exist.
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "textarea",
       id: "notes",
@@ -305,15 +258,13 @@ test("renders textareas with their own constraint set", async ({ page }) => {
   ]);
   await expect(page.locator("#form-controls fieldset.wizard")).toHaveCount(0);
   await expect(page.locator("#extra")).toHaveCount(0);
-  expectCleanPage(errors);
 });
 
 test("renders selects with rich options and a customizable-select shell", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "select",
       id: "priority",
@@ -342,13 +293,10 @@ test("renders selects with rich options and a customizable-select shell", async 
     page.locator('#priority option[value="low"] .option-label'),
   ).toHaveText("low");
   await expect(page.locator("#priority")).toHaveValue("high");
-  expectCleanPage(errors);
 });
 
-test("renders listboxes with multi-selection defaults", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+test("renders listboxes with multi-selection defaults", async ({ page, app }) => {
+  await renderSchema(page, [
     {
       type: "listbox",
       id: "regions",
@@ -383,15 +331,13 @@ test("renders listboxes with multi-selection defaults", async ({ page }) => {
       APP.formHelpers.listboxes.map((control) => control.id),
     ),
   ).toEqual(["regions"]);
-  expectCleanPage(errors);
 });
 
 test("renders checkbox and radio values, defaults, and freeform styling", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     { type: "checkbox", id: "plain-check", name: "plainCheck", label: "Plain" },
     {
       type: "checkbox",
@@ -438,15 +384,13 @@ test("renders checkbox and radio values, defaults, and freeform styling", async 
       APP.formHelpers.radios.map((control) => control.id),
     ),
   ).toEqual(["freeform-radio"]);
-  expectCleanPage(errors);
 });
 
 test("renders grouped fieldsets with a legend and nested members", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "fieldset",
       id: "contact-group",
@@ -485,15 +429,13 @@ test("renders grouped fieldsets with a legend and nested members", async ({
       APP.formHelpers.fieldsets.map((control) => control.id),
     ),
   ).toEqual(["contact-group", ""]);
-  expectCleanPage(errors);
 });
 
 test("renders typed lists with their constraints on the fieldset", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     {
       type: "list:number",
       id: "amounts",
@@ -576,13 +518,10 @@ test("renders typed lists with their constraints on the fieldset", async ({
   expect(
     await page.evaluate(() => APP.formHelpers.lists.map((list) => list.id)),
   ).toEqual(["amounts", "plain-list"]);
-  expectCleanPage(errors);
 });
 
-test("keeps name-less list rows unnamed while reindexing", async ({ page }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [{ type: "list", id: "plain-list", label: "Plain list" }]);
+test("keeps name-less list rows unnamed while reindexing", async ({ page, app }) => {
+  await renderSchema(page, [{ type: "list", id: "plain-list", label: "Plain list" }]);
 
   await page.locator(".list-add").click();
   await page.locator(".list-add").click();
@@ -596,15 +535,13 @@ test("keeps name-less list rows unnamed while reindexing", async ({ page }) => {
     { id: "plain-list-0", name: "" },
     { id: "plain-list-1", name: "" },
   ]);
-  expectCleanPage(errors);
 });
 
 test("groups every control type through the form helper accessors", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
-  await render(page, [
+  await renderSchema(page, [
     { type: "text", id: "a-text", name: "aText", label: "Text" },
     { type: "email", id: "a-email", name: "aEmail", label: "Email" },
     { type: "search", id: "a-search", name: "aSearch", label: "Search" },
@@ -676,5 +613,4 @@ test("groups every control type through the form helper accessors", async ({
     dropdowns: ["a-select", "a-listbox"],
     formControlCount: 14,
   });
-  expectCleanPage(errors);
 });

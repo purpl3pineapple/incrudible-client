@@ -124,7 +124,7 @@ const criteriaWorkflow = {
     },
   ],
   rules: {
-    criteria: {
+    criteriaRules: {
       option: sharedOptionCriteria,
       "approval-notes": approvalCriteria,
       "first-detail": [["show-first", true]],
@@ -133,11 +133,11 @@ const criteriaWorkflow = {
       "include-details": [["show-details", true]],
       "conditional-mode": [["show-mode", true]],
     },
-    wizards: {
+    wizardRules: {
       "include-details": [{ test: true, wizard: detailWizard }],
       "conditional-mode": [{ test: "Detailed", wizard: modeWizard }],
     },
   },
 };
 
-module.exports = { criteriaWorkflow };
+export { criteriaWorkflow };

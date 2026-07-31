@@ -1,29 +1,26 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, mountSchema, openFixture } = require("./helpers");
+import { expect, test } from "./setup.js";
+import { mountSchema } from "./helpers/index.js";
 
 test("warns once per sync about a dependency on an unknown control", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [{ type: "text", id: "present", name: "present", label: "Present" }],
     rules: { criteriaRules: { present: [["missing-control", true]] } },
   });
 
-  expect(errors.consoleWarnings).toContain(
+  expect(app.consoleWarnings).toContain(
     'Dependency references unknown control "missing-control"',
   );
   // An unresolvable dependency fails closed rather than revealing the field.
   await expect(page.locator("#present")).toBeHidden();
-  expectCleanPage(errors);
 });
 
 test("resolves rules keyed by a list fieldset's submission name", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "show-tags", name: "showTags", label: "Show tags" },
@@ -47,14 +44,12 @@ test("resolves rules keyed by a list fieldset's submission name", async ({
 
   await page.locator("#show-tags").uncheck();
   await expect(list).toBeHidden();
-  expectCleanPage(errors);
 });
 
 test("ignores autofill and requisition rules for ineligible targets", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
@@ -98,12 +93,9 @@ test("ignores autofill and requisition rules for ineligible targets", async ({
   await expect(page.locator("#off")).toHaveValue("");
   await expect(page.locator("#codes-0")).toHaveValue("");
   await expect(page.locator("#codes")).not.toHaveAttribute("required", "");
-  expectCleanPage(errors);
 });
 
-test("skips autofill rules whose dependencies never pass", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("skips autofill rules whose dependencies never pass", async ({ page, app }) => {
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
@@ -133,14 +125,12 @@ test("skips autofill rules whose dependencies never pass", async ({ page }) => {
   await expect(page.locator("#target")).toHaveValue("filled");
   await page.locator("#target").fill("manual");
   await expect(page.locator("#target")).toHaveValue("manual");
-  expectCleanPage(errors);
 });
 
 test("clears an autofill target when the rule resolves to nothing", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
@@ -158,14 +148,12 @@ test("clears an autofill target when the rule resolves to nothing", async ({
 
   // A rule with no value stringifies to empty rather than "undefined".
   await expect(page.locator("#target")).toHaveValue("");
-  expectCleanPage(errors);
 });
 
 test("requires every dependency across controls sharing a name", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       ...["alpha", "beta"].map((value) => ({
@@ -193,14 +181,12 @@ test("requires every dependency across controls sharing a name", async ({
 
   await page.locator("#beta-flag").uncheck();
   await expect(detail).toBeHidden();
-  expectCleanPage(errors);
 });
 
 test("ignores disabled controls when resolving dependencies", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "outer", name: "outer", label: "Outer" },
@@ -224,14 +210,12 @@ test("ignores disabled controls when resolving dependencies", async ({
   await page.locator("#outer").uncheck();
   await expect(page.locator("#inner")).toBeDisabled();
   await expect(page.locator("#detail")).toBeHidden();
-  expectCleanPage(errors);
 });
 
 test("re-reveals a chained criteria target in the same sync", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   // Deliberately no extra listeners: APP.init installs a single `change`
   // handler on the app form, so each interaction triggers exactly one
   // sync pass. Wiring `input` as well would sync twice and mask an
@@ -272,14 +256,12 @@ test("re-reveals a chained criteria target in the same sync", async ({
   await expect(gate).toBeEnabled();
   await expect(gate).toBeChecked();
   await expect(detail).toBeVisible();
-  expectCleanPage(errors);
 });
 
 test("re-reveals a wizard gated by a criteria-controlled dependency", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   // Single-pass wiring again: the library's own change handler only.
   await page.evaluate(() => {
     const wizards = [
@@ -333,14 +315,12 @@ test("re-reveals a wizard gated by a criteria-controlled dependency", async ({
   await expect(gate).toBeEnabled();
   await expect(gate).toBeChecked();
   await expect(detail).toBeVisible();
-  expectCleanPage(errors);
 });
 
 test("routes each rule family through the store independently", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   expect(
     await page.evaluate(() => {
       const families = Object.keys(APP.rules);
@@ -380,12 +360,9 @@ test("routes each rule family through the store independently", async ({
     untouchedFamily: {},
     unknownIsInert: true,
   });
-  expectCleanPage(errors);
 });
 
-test("syncs modals only for controls that own a rule", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("syncs modals only for controls that own a rule", async ({ page, app }) => {
   await mountSchema(page, {
     schema: [
       { type: "text", id: "anonymous", label: "Anonymous" },
@@ -422,12 +399,9 @@ test("syncs modals only for controls that own a rule", async ({ page }) => {
   await page.locator("#watched").check();
   await expect(page.locator("#message-modal")).toHaveAttribute("open", "");
   await expect(page.locator("#message-modal-header")).toHaveText("Noted");
-  expectCleanPage(errors);
 });
 
-test("re-renders control alerts on every change", async ({ page }) => {
-  const errors = await openFixture(page);
-
+test("re-renders control alerts on every change", async ({ page, app }) => {
   await mountSchema(page, {
     schema: [
       {
@@ -484,14 +458,12 @@ test("re-renders control alerts on every change", async ({ page }) => {
   await expect(
     page.locator('.control-alerts[data-control-id="unruled"]'),
   ).toBeEmpty();
-  expectCleanPage(errors);
 });
 
 test("leaves alert containers alone when their control is gone", async ({
   page,
+  app,
 }) => {
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       {
@@ -519,5 +491,4 @@ test("leaves alert containers alone when their control is gone", async ({
     APP.formHelpers.syncAlerts();
   });
   await expect(page.locator(".control-alerts")).toContainText("Present.");
-  expectCleanPage(errors);
 });

@@ -1,16 +1,6 @@
-const { expect, test } = require("./setup");
-const { expectCleanPage, mountSchema, openFixture } = require("./helpers");
-
-// The article frame points at Google-hosted documents. Serve them locally
-// so the tests never depend on network access and the page stays clean.
-const stubGoogleDocs = (page) =>
-  Promise.all(
-    ["https://docs.google.com/**", "https://drive.google.com/**"].map((url) =>
-      page.route(url, (route) =>
-        route.fulfill({ contentType: "text/html", body: "<!doctype html>" }),
-      ),
-    ),
-  );
+import { expect, test } from "./setup.js";
+import { mountSchema } from "./helpers/index.js";
+import { stubGoogleDocs } from "./mocks/index.js";
 
 const articleSchema = [
   {
@@ -54,10 +44,9 @@ const articleRules = {
 
 test("shows the matching article for each supported resource type", async ({
   page,
+  app,
 }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
 
   const article = page.locator("#workflow-article");
@@ -93,15 +82,13 @@ test("shows the matching article for each supported resource type", async ({
     "src",
     "https://drive.google.com/file/d/pdf-123/preview",
   );
-  expectCleanPage(errors);
 });
 
 test("hides the article when no rule matches or the type is unsupported", async ({
   page,
+  app,
 }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
 
   await page.locator("#resource").selectOption("doc");
@@ -119,13 +106,10 @@ test("hides the article when no rule matches or the type is unsupported", async 
 
   await page.locator("#resource").selectOption("");
   await expect(page.locator("#workflow-article")).toBeHidden();
-  expectCleanPage(errors);
 });
 
-test("rejects articles without a usable resource id", async ({ page }) => {
+test("rejects articles without a usable resource id", async ({ page, app }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   const outcomes = await page.evaluate(() => [
     APP._internals.showArticle(),
     APP._internals.showArticle({ resource: { type: "doc" } }),
@@ -135,15 +119,13 @@ test("rejects articles without a usable resource id", async ({ page }) => {
   ]);
 
   expect(outcomes).toEqual([false, false, false, false, true]);
-  expectCleanPage(errors);
 });
 
 test("keeps the frame source stable across repeated syncs", async ({
   page,
+  app,
 }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
   await page.locator("#resource").selectOption("doc");
 
@@ -172,15 +154,13 @@ test("keeps the frame source stable across repeated syncs", async ({
     "src",
     "https://docs.google.com/document/d/doc-123/preview",
   );
-  expectCleanPage(errors);
 });
 
 test("reports failure when the article surface is missing", async ({
   page,
+  app,
 }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   const shown = await page.evaluate(() => {
     const article = document.getElementById("workflow-article");
     article.remove();
@@ -194,15 +174,13 @@ test("reports failure when the article surface is missing", async ({
   });
 
   expect(shown).toBe(false);
-  expectCleanPage(errors);
 });
 
 test("matches article rules keyed by control name and gated by dependencies", async ({
   page,
+  app,
 }) => {
   await stubGoogleDocs(page);
-  const errors = await openFixture(page);
-
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "escalated", name: "escalated", label: "Escalated" },
@@ -241,5 +219,4 @@ test("matches article rules keyed by control name and gated by dependencies", as
 
   await page.locator("#first-code").check();
   await expect(page.locator("#workflow-article")).toBeHidden();
-  expectCleanPage(errors);
 });
