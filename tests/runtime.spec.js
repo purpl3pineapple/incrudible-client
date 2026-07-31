@@ -224,6 +224,18 @@ test("normalizes any unrecognized theme to light", async ({ page, app }) => {
   ).toBe("light");
 });
 
+test("reports empty values when the page has no form", async ({
+  page,
+  app,
+}) => {
+  expect(
+    await page.evaluate(() => {
+      document.getElementById("app-form").remove();
+      return APP.values;
+    }),
+  ).toEqual({});
+});
+
 test("reads only same-day stored records", async ({ page, app }) => {
   // Nothing stored at all.
   expect(await page.evaluate(() => APP.records)).toEqual([]);

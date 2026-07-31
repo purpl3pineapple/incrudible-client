@@ -317,6 +317,46 @@ test("re-reveals a wizard gated by a criteria-controlled dependency", async ({
   await expect(detail).toBeVisible();
 });
 
+test("starts a list hidden when a wizard owns it", async ({ page, app }) => {
+  const wizards = [
+    {
+      test: true,
+      wizard: { type: "list", id: "notes", name: "notes", label: "Notes" },
+    },
+  ];
+
+  await mountSchema(page, {
+    schema: [
+      {
+        type: "checkbox",
+        id: "add-notes",
+        name: "addNotes",
+        label: "Add notes",
+        wizards,
+      },
+    ],
+    rules: { wizardRules: { "add-notes": wizards } },
+    listeners: false,
+  });
+
+  // A list reached through a wizard renders hidden and disabled, so its
+  // rows submit nothing until the controller reveals it.
+  const list = page.locator("#notes");
+  await expect(list).toBeHidden();
+  await expect(list).toHaveAttribute("disabled", "");
+
+  await page.locator("#add-notes").check();
+  await expect(list).toBeVisible();
+  await expect(page.locator("#notes-0")).toBeEnabled();
+
+  await page.locator("#notes-0").fill("first");
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => new FormData(form).get("notes_0")),
+  ).toBe("first");
+});
+
 test("routes each rule family through the store independently", async ({
   page,
   app,

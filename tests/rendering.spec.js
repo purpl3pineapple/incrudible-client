@@ -362,6 +362,7 @@ test("renders checkbox and radio values, defaults, and freeform styling", async 
       value: "other",
       freeform: true,
     },
+    { type: "radio", id: "bare-radio", name: "choice", label: "Bare" },
   ]);
 
   // A bare checkbox submits "true" rather than the browser default "on".
@@ -373,6 +374,9 @@ test("renders checkbox and radio values, defaults, and freeform styling", async 
   await expect(page.locator("#default-checked")).toBeChecked();
   await expect(page.locator("#freeform-radio")).toHaveClass("freeform");
   expect((await describeControl(page, "freeform-radio")).value).toBe("other");
+  // Only a checkbox gets the "true" default; a value-less radio keeps the
+  // browser's own "on".
+  expect((await describeControl(page, "bare-radio")).value).toBe("on");
 
   expect(
     await page.evaluate(() =>
@@ -383,7 +387,7 @@ test("renders checkbox and radio values, defaults, and freeform styling", async 
     await page.evaluate(() =>
       APP.formHelpers.radios.map((control) => control.id),
     ),
-  ).toEqual(["freeform-radio"]);
+  ).toEqual(["freeform-radio", "bare-radio"]);
 });
 
 test("renders grouped fieldsets with a legend and nested members", async ({

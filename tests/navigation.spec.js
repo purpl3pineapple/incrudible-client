@@ -38,6 +38,23 @@ test("moves tab selection with the arrow, home, and end keys", async ({
   ).toEqual([0, -1]);
 });
 
+test("reselecting the active tab changes nothing", async ({ page, app }) => {
+  const recordsTab = page.getByRole("tab", { name: "My Submissions" });
+
+  await recordsTab.click();
+  await expect(recordsTab).toHaveAttribute("aria-selected", "true");
+
+  // The store short-circuits an unchanged selection, so the second click
+  // leaves the tab and its panel exactly as they were.
+  await recordsTab.click();
+  await expect(recordsTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#panel-records")).not.toHaveAttribute(
+    "hidden",
+    "",
+  );
+  await expect(page.locator("#panel-form")).toHaveAttribute("hidden", "");
+});
+
 test("ignores keys the tablist does not handle", async ({ page, app }) => {
   const formTab = page.getByRole("tab", { name: "New Submission" });
   await formTab.focus();

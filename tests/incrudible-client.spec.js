@@ -209,6 +209,60 @@ test("resolves conditional value references", async ({ page, app }) => {
   await expect(page.locator("#preview-list")).toContainText("From case 123");
 });
 
+test("gates a conditional token on a string test", async ({ page, app }) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "text", id: "gate", name: "gate", label: "Gate" },
+      { type: "text", id: "source", name: "source", label: "Source" },
+    ],
+    preview: false,
+  });
+
+  const resolve = () =>
+    page.evaluate(() =>
+      APP.formHelpers.resolveValueReferences(
+        '!{[["gate","yes"],"From !{#source}"]}',
+        document.querySelector("#source"),
+      ),
+    );
+
+  await page.locator("#source").fill("case 7");
+  // The dependency takes a string rather than a boolean, so it passes only
+  // on an exact value match — not merely on the control having one.
+  await page.locator("#gate").fill("no");
+  expect(await resolve()).toBe("");
+
+  await page.locator("#gate").fill("yes");
+  expect(await resolve()).toBe("From case 7");
+});
+
+test("stops a circular interpolation chain without recursing", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "text", id: "alpha", name: "alpha", label: "Alpha" },
+      { type: "text", id: "beta", name: "beta", label: "Beta" },
+    ],
+    preview: false,
+  });
+
+  await page.locator("#alpha").fill("alpha sees !{#beta}");
+  await page.locator("#beta").fill("beta sees !{#alpha}");
+
+  // Each id resolves once per chain; the token that would close the loop
+  // is left as written rather than expanded forever.
+  expect(
+    await page.evaluate(() =>
+      APP.formHelpers.resolveValueReferences(
+        "start !{#alpha}",
+        document.querySelector("#alpha"),
+      ),
+    ),
+  ).toBe("start alpha sees beta sees !{#alpha}");
+});
+
 test("keeps a nameless wizard source out of its interpolated preview", async ({
   page,
   app,

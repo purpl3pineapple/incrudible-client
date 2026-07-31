@@ -175,6 +175,24 @@ test("joins multi-select values and skips empty selections", async ({
   ]);
 });
 
+test("skips a select that has nothing to select", async ({ page, app }) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "select", id: "empty", name: "empty", label: "Empty", options: [] },
+      { type: "text", id: "note", name: "note", label: "Note" },
+    ],
+  });
+
+  await page.locator("#note").fill("kept");
+  await page.evaluate(() => APP.formHelpers.renderPreview());
+
+  // With no options there is no selection to read, so the select drops out
+  // rather than contributing an empty row.
+  expect(await page.evaluate(() => APP.preview)).toEqual([
+    [undefined, "Note", "kept"],
+  ]);
+});
+
 test("appends footnotes matched by control name and gated by dependencies", async ({
   page,
   app,
