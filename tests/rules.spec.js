@@ -1,7 +1,7 @@
 import { expect, test } from "./setup.js";
 import { mountSchema } from "./helpers/index.js";
 
-test("warns once per sync about a dependency on an unknown control", async ({
+test("fails closed on a dependency naming no control at all", async ({
   page,
   app,
 }) => {
@@ -10,11 +10,50 @@ test("warns once per sync about a dependency on an unknown control", async ({
     rules: { criteriaRules: { present: [["missing-control", true]] } },
   });
 
-  expect(app.consoleWarnings).toContain(
-    'Dependency references unknown control "missing-control"',
-  );
-  // An unresolvable dependency fails closed rather than revealing the field.
+  // An unresolvable dependency hides the field rather than defaulting to
+  // visible, and says nothing about it either way.
   await expect(page.locator("#present")).toBeHidden();
+  expect(app.consoleWarnings).toEqual([]);
+});
+
+test("resolves a chain of dependent rules in a single sync", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    // Authored leaf-first, so the chain only settles in one pass if rules
+    // are applied in dependency order rather than the order written.
+    schema: [
+      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+      { type: "text", id: "middle", name: "middle", label: "Middle" },
+      { type: "text", id: "leaf", name: "leaf", label: "Leaf" },
+    ],
+    rules: {
+      criteriaRules: {
+        leaf: [["middle", "yes"]],
+        middle: [["gate", true]],
+      },
+    },
+  });
+
+  // "middle" is rendered and real — just disabled by its own rule, which is
+  // an ordinary link in a chain. Resolution fails closed on it regardless.
+  await expect(page.locator("#middle")).toBeHidden();
+  await expect(page.locator("#leaf")).toBeHidden();
+
+  await page.locator("#gate").check();
+  await expect(page.locator("#middle")).toBeVisible();
+
+  await page.locator("#middle").fill("yes");
+  await page.locator("#middle").blur();
+  await expect(page.locator("#leaf")).toBeVisible();
+
+  // Collapsing the root takes the whole chain with it in the same sync.
+  await page.locator("#gate").uncheck();
+  await expect(page.locator("#middle")).toBeHidden();
+  await expect(page.locator("#leaf")).toBeHidden();
+
+  expect(app.consoleWarnings).toEqual([]);
 });
 
 test("resolves rules keyed by a list fieldset's submission name", async ({

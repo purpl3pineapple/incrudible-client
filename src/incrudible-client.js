@@ -30,6 +30,26 @@ export { DAYS };
 const THEME_STORAGE_KEY = "[incrudible:theme]";
 
 /**
+ * The `/pattern/flags` shape, capturing source and flags. Both a rule's
+ * test and a dependency key may take it; anything else is compared
+ * literally, which is what lets a literal key be looked up directly
+ * rather than matched against every control in the form.
+ *
+ * @type {RegExp}
+ */
+const PATTERN_KEY = /^\/(.*)\/([a-z]*)$/;
+
+/**
+ * Application order per criteria rule set, keyed by the rule object it was
+ * derived from. The store replaces that object wholesale when a family is
+ * assigned, so a stale entry becomes unreachable on its own and the cache
+ * needs no invalidating.
+ *
+ * @type {WeakMap<object, string[]>}
+ */
+const criteriaOrders = new WeakMap();
+
+/**
  * The single store every accessor on APP reads through and every setter
  * dispatches into.
  *
@@ -2102,7 +2122,7 @@ export const APP = {
        *
        * @type {RegExpExecArray | null}
        */
-      const match = /^\/(.*)\/([a-z]*)$/.exec(test);
+      const match = PATTERN_KEY.exec(test);
 
       return values.some((v) =>
         match ? new RegExp(match[1], match[2]).test(v) : v === test,
@@ -2233,12 +2253,15 @@ export const APP = {
     /**
      * Resolves a rule's dependencies against the current form state. Every
      * dependency must pass, and resolution fails closed: a key matching no
-     * enabled control warns and returns false rather than defaulting to
-     * visible.
+     * enabled control returns false rather than defaulting to visible.
      *
      * A key is matched against control ids first, then names; when several
      * controls share a name their values are pooled, so any one of them
      * satisfying the test is enough.
+     *
+     * A rule carrying no dependencies passes without touching the form at
+     * all — the common case, and the reason this returns before doing any
+     * work rather than after.
      *
      * @param {Dependency[] | Map<string, string | boolean>} [dependencies] - Dependencies to satisfy.
      * @param {HTMLFormElement} [targetForm] - Form to resolve against.
@@ -2246,66 +2269,20 @@ export const APP = {
      */
     when: (dependencies = new Map(), targetForm = APP.form) => {
       /**
-       * The controls a dependency may resolve against: addressable, and
-       * enabled. Excluding disabled controls is what makes a rule fail
-       * closed when it depends on something another rule has hidden.
+       * How many dependencies there are, read from whichever shape the
+       * caller passed. Most rules carry none, and resolving one is far
+       * costlier than counting them.
        *
-       * @type {HTMLElement[]}
+       * @type {number}
        */
-      const controls = Array.from(targetForm?.elements ?? []).filter(
-        (control) => (control.id || control.name) && !control.disabled,
-      );
-      /**
-       * Distinct names among those controls, so a group sharing a name is
-       * considered once rather than per member.
-       *
-       * @type {Set<string>}
-       */
-      const controlNames = new Set(controls.map((control) => control.name));
+      const count = dependencies.size ?? dependencies.length ?? 0;
+
+      if (!count) {
+        return true;
+      }
 
       for (const [key, test] of dependencies) {
-        /**
-         * A control whose id is the key. An id match wins outright — the
-         * name tier is only consulted when there is none.
-         *
-         * @type {HTMLElement | undefined}
-         */
-        const idMatch = controls.find((control) => control.id === key);
-        /**
-         * Names the key matches, which for a regex key may be several.
-         *
-         * @type {string[]}
-         */
-        const names = [...controlNames].filter((name) =>
-          name && APP._internals.match(key, [name]),
-        );
-
-        if (!idMatch && !names.length) {
-          console.warn(`Dependency references unknown control "${key}"`);
-        }
-
-        if (
-          !(idMatch
-            ? APP._internals.match(
-                test,
-                APP._internals.getValue(idMatch, targetForm),
-              )
-            : names.some((name) => {
-                /**
-                 * Values pooled across every control sharing the name, so
-                 * one member satisfying the test is enough for the group.
-                 *
-                 * @type {string[]}
-                 */
-                const values = controls
-                  .filter((control) => control.name === name)
-                  .flatMap((control) =>
-                    APP._internals.getValue(control, targetForm),
-                  );
-
-                return APP._internals.match(test, values);
-              }))
-        ) {
+        if (!dependencyPasses(key, test, targetForm)) {
           return false;
         }
       }
@@ -3337,6 +3314,15 @@ export const APP = {
               ),
           );
 
+          /**
+           * Each target's outcome, kept so the shell check below can read
+           * what this loop already worked out rather than resolving every
+           * rule's dependencies a second time.
+           *
+           * @type {(boolean | undefined)[]}
+           */
+          const resolved = [];
+
           targets.forEach((wizard, i) => {
             /**
              * The rule governing this target, matched by position.
@@ -3355,6 +3341,8 @@ export const APP = {
               rule &&
               APP._internals.match(rule.test, values) &&
               APP._internals.when(rule.when, targetForm);
+
+            resolved.push(show);
 
             if (wizard.hidden !== !show) {
               changed = true;
@@ -3385,12 +3373,17 @@ export const APP = {
            * is this fieldset's own first child, and hiding the fieldset
            * would take the controller with it.
            *
+           * Rules the loop above already settled are read back from it;
+           * only rules with no target of their own — which still count
+           * toward the shell — are resolved here.
+           *
            * @type {boolean}
            */
-          const anyShown = activeRules.some(
-            (rule) =>
-              APP._internals.match(rule.test, values) &&
-              APP._internals.when(rule.when, targetForm),
+          const anyShown = activeRules.some((rule, i) =>
+            i < resolved.length
+              ? Boolean(resolved[i])
+              : APP._internals.match(rule.test, values) &&
+                APP._internals.when(rule.when, targetForm),
           );
           if (fieldset.hidden !== !anyShown) {
             changed = true;
@@ -3490,6 +3483,19 @@ export const APP = {
  */
 function applyCriterion(targetForm, key, criteria) {
   /**
+   * Everything this rule governs. Resolved before its dependencies are:
+   * a key addressing nothing has no outcome to apply, so there is no
+   * point deciding one.
+   *
+   * @type {HTMLElement[]}
+   */
+  const ruleTargets = getRuleTargets(targetForm, key);
+
+  if (!ruleTargets.length) {
+    return false;
+  }
+
+  /**
    * Whether the rule's dependencies currently pass, decided once and
    * applied to every target the key resolves to.
    *
@@ -3503,7 +3509,7 @@ function applyCriterion(targetForm, key, criteria) {
    */
   let changed = false;
 
-  getRuleTargets(targetForm, key).forEach((target) => {
+  ruleTargets.forEach((target) => {
     /**
      * What actually gets hidden: a fieldset target hides itself, while a
      * plain control hides its whole labeled wrapper so the label goes
@@ -3646,6 +3652,202 @@ function createLabelToolbar({ label, hint }) {
 }
 
 /**
+ * Criteria rule keys in the order they should be applied: shallowest
+ * dependency chain first.
+ *
+ * A rule's depth is one more than the deepest rule it depends on, and a
+ * dependency naming no rule of its own is a root at zero. Applying them in
+ * that order means a rule reads `disabled` state its dependencies have
+ * already settled this pass, so a chain the length of the form resolves in
+ * one pass rather than one pass per link.
+ *
+ * Keys of equal depth keep their authored order, since sorting is stable.
+ *
+ * Depth follows from the rules alone and never from the DOM, so the result
+ * is memoized against the rule object itself.
+ *
+ * @param {Record<string, Dependency[]>} [rules] - Criteria rules for one form's scope.
+ * @returns {string[]} The rule keys, shallowest first.
+ */
+function criteriaOrder(rules) {
+  if (!rules) {
+    return [];
+  }
+
+  /**
+   * The order already worked out for this exact rule object, if it has
+   * been applied before.
+   *
+   * @type {string[] | undefined}
+   */
+  const memoized = criteriaOrders.get(rules);
+
+  if (memoized) {
+    return memoized;
+  }
+
+  /**
+   * Depth per key, filled in as the recursion settles each one.
+   *
+   * @type {Map<string, number>}
+   */
+  const depths = new Map();
+  /**
+   * Keys on the current path, so a dependency cycle stops instead of
+   * recurring forever. A key already being visited counts as a root —
+   * contradictory rules remain the pass ceiling's problem, not this
+   * function's.
+   *
+   * @type {Set<string>}
+   */
+  const visiting = new Set();
+  /**
+   * How deep one key's dependency chain runs.
+   *
+   * @param {string} key - Rule key to measure.
+   * @returns {number} The key's depth.
+   */
+  const depth = (key) => {
+    if (depths.has(key)) {
+      return depths.get(key);
+    }
+
+    /**
+     * What the key depends on. A key with none — including one naming a
+     * control no rule is keyed to — is a root.
+     *
+     * @type {Dependency[] | undefined}
+     */
+    const dependencies = rules[key];
+
+    if (!dependencies?.length || visiting.has(key)) {
+      return 0;
+    }
+
+    visiting.add(key);
+
+    /**
+     * One past the deepest dependency.
+     *
+     * @type {number}
+     */
+    const measured =
+      1 + Math.max(...dependencies.map(([dependency]) => depth(dependency)));
+
+    visiting.delete(key);
+    depths.set(key, measured);
+
+    return measured;
+  };
+  /**
+   * The keys, shallowest first.
+   *
+   * @type {string[]}
+   */
+  const ordered = Object.keys(rules).sort((a, b) => depth(a) - depth(b));
+
+  criteriaOrders.set(rules, ordered);
+
+  return ordered;
+}
+
+/**
+ * Whether one dependency passes against the current form state.
+ *
+ * A literal key is resolved through the form's own named-access
+ * collection, which indexes controls by id and name — a lookup rather
+ * than a walk over every control in the form. Only a regex key, which may
+ * match several distinct names at once, still has to scan, and it scans
+ * the distinct names rather than the whole form.
+ *
+ * An id match wins outright; failing that, the values of every control
+ * sharing the name are pooled, so one member satisfying the test is
+ * enough for the group. Disabled controls are invisible either way, which
+ * is what makes a rule fail closed when it depends on something another
+ * rule has hidden.
+ *
+ * @param {string} key - Control id or name, or a "/pattern/flags" regex matched against names.
+ * @param {string | boolean} test - The test the matched values must satisfy.
+ * @param {HTMLFormElement} [targetForm] - Form to resolve against.
+ * @returns {boolean} Whether the dependency passes.
+ */
+function dependencyPasses(key, test, targetForm) {
+  if (!PATTERN_KEY.test(key)) {
+    /**
+     * Enabled controls the form indexes under this key, by id or name.
+     * Excluding disabled ones is what makes a rule fail closed when it
+     * depends on something another rule has hidden.
+     *
+     * @type {HTMLElement[]}
+     */
+    const named = namedControls(key, targetForm).filter(
+      (control) => !control.disabled,
+    );
+    /**
+     * A control whose id is the key. An id match wins outright — the name
+     * tier is only consulted when there is none.
+     *
+     * @type {HTMLElement | undefined}
+     */
+    const idMatch = named.find((control) => control.id === key);
+
+    if (idMatch) {
+      return APP._internals.match(
+        test,
+        APP._internals.getValue(idMatch, targetForm),
+      );
+    }
+
+    // Whatever is left matched on name, so it is already the one group a
+    // literal key can address — no name tier to iterate.
+    return (
+      named.length > 0 &&
+      APP._internals.match(
+        test,
+        named.flatMap((control) =>
+          APP._internals.getValue(control, targetForm),
+        ),
+      )
+    );
+  }
+
+  /**
+   * The controls a regex key may resolve against: addressable, and
+   * enabled.
+   *
+   * @type {HTMLElement[]}
+   */
+  const enabled = Array.from(targetForm?.elements ?? []).filter(
+    (control) => (control.id || control.name) && !control.disabled,
+  );
+  /**
+   * Distinct names among those controls, so a group sharing a name is
+   * considered once rather than per member.
+   *
+   * @type {Set<string>}
+   */
+  const uniques = new Set(enabled.map((control) => control.name));
+
+  return [...uniques].some((name) => {
+    if (!name || !APP._internals.match(key, [name])) {
+      return false;
+    }
+
+    /**
+     * Values pooled across every control sharing the name, so one member
+     * satisfying the test is enough for the group.
+     *
+     * @type {string[]}
+     */
+    const values = enabled
+      .filter((control) => control.name === name)
+      .flatMap((control) => APP._internals.getValue(control, targetForm));
+
+    return APP._internals.match(test, values);
+  });
+}
+
+/**
  * The resolved footnote a control contributes, or an empty string when no
  * rule applies. Rules are keyed by the control's id first and then by its
  * name, and every rule that passes contributes, joined in authored order.
@@ -3703,32 +3905,28 @@ function getRuleTarget(targetForm, key) {
  */
 function getRuleTargets(targetForm, key) {
   /**
-   * Every control the form owns. Unlike dependency resolution, disabled
-   * controls are kept — a rule still governs what it has hidden.
+   * Controls the form indexes under the key, by id or name. Unlike
+   * dependency resolution, disabled controls are kept — a rule still
+   * governs what it has hidden.
    *
    * @type {HTMLElement[]}
    */
-  const controls = Array.from(targetForm?.elements ?? []);
+  const named = namedControls(key, targetForm);
   /**
-   * A control whose id is the key.
+   * A control whose id is the key. The lookup does not say which of id or
+   * name matched, so precedence is decided here — over a handful of
+   * controls rather than the whole form.
    *
    * @type {HTMLElement | undefined}
    */
-  const idMatch = controls.find((control) => control.id === key);
-  /**
-   * Controls sharing the key as their name, which for a radio group or a
-   * repeated field is several.
-   *
-   * @type {HTMLElement[]}
-   */
-  const nameMatches = controls.filter((control) => control.name === key);
+  const idMatch = named.find((control) => control.id === key);
 
   if (idMatch) {
     return [idMatch];
   }
 
-  if (nameMatches.length) {
-    return nameMatches;
+  if (named.length) {
+    return named;
   }
 
   return Array.from(
@@ -3748,6 +3946,40 @@ function getWizardController(fieldset) {
   return ["checkbox", "radio"].includes(fieldset.dataset.type)
     ? fieldset.previousElementSibling
     : fieldset.querySelector(":scope > .form-control");
+}
+
+/**
+ * The controls a form indexes under one key.
+ *
+ * `form.elements` indexes its members by both id and name, so a literal
+ * key resolves through it directly instead of walking every control. The
+ * collection yields a single element, a list when several share the name,
+ * or nothing — and it does not say which of the two matched, so callers
+ * that care about id-over-name precedence re-check that on the result.
+ *
+ * Disabled controls are returned too: whether they count is the caller's
+ * policy, and the two callers disagree. Dependency resolution excludes
+ * them so a rule fails closed, while a rule still governs the targets it
+ * has itself hidden.
+ *
+ * @param {string} key - Control id or name.
+ * @param {HTMLFormElement} [targetForm] - Form to resolve against.
+ * @returns {HTMLElement[]} The matching controls, possibly empty.
+ */
+function namedControls(key, targetForm) {
+  /**
+   * What the collection indexes under the key: one element, a list of
+   * them, or nothing.
+   *
+   * @type {HTMLElement | RadioNodeList | null}
+   */
+  const named = targetForm?.elements?.namedItem?.(key) ?? null;
+
+  if (!named) {
+    return [];
+  }
+
+  return named instanceof HTMLElement ? [named] : Array.from(named);
 }
 
 /**
@@ -4168,8 +4400,8 @@ function syncCriteria(targetForm) {
    */
   let changed = false;
 
-  for (const [key, criteria] of Object.entries(rules)) {
-    if (applyCriterion(targetForm, key, criteria)) {
+  for (const key of criteriaOrder(rules)) {
+    if (applyCriterion(targetForm, key, rules[key])) {
       changed = true;
     }
   }
