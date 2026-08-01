@@ -45,12 +45,29 @@ const buildRuleMaps = (schema) => {
     autofills: new Map(),
   };
   /**
+   * Ids already claimed by an earlier entry, and the ones claimed twice.
+   * An id addresses both a rule and a dependency, so a repeat misbehaves
+   * quietly rather than failing — the server rejects one outright, and a
+   * test authored against one would be describing a config it refuses.
+   *
+   * @type {{seen: Set<string>, repeated: Set<string>}}
+   */
+  const ids = { seen: new Set(), repeated: new Set() };
+  /**
    * Indexes one entry, then the wizards and members nested beneath it.
    *
    * @param {object} entry - Control whose direct and nested rule sets should be collected.
    * @returns {void}
    */
   const walk = (entry) => {
+    if (entry.id) {
+      if (ids.seen.has(entry.id)) {
+        ids.repeated.add(entry.id);
+      }
+
+      ids.seen.add(entry.id);
+    }
+
     // A name addresses a rule set only when there is no id to address it
     // by. Options in a group each carry their own id but share one name,
     // so registering under both would let the last option overwrite the
@@ -89,6 +106,12 @@ const buildRuleMaps = (schema) => {
   schema.forEach((entry) => {
     walk(entry);
   });
+
+  if (ids.repeated.size) {
+    throw new Error(
+      `Workflow schema reuses control ids: ${[...ids.repeated].sort().join(", ")}. An id addresses a control's rules and any dependency on it, so a repeat applies one control's rules to another.`,
+    );
+  }
 
   return Object.fromEntries(
     Object.entries(maps).map(([key, map]) => [key, Object.fromEntries(map)]),
