@@ -1,3 +1,11 @@
+// Criteria in every shape the sync has to handle: a radio group whose
+// options share a name but each carry their own id, a field gated on two
+// dependencies at once, two fields sharing one submission name, a gated
+// list, and gated controls that themselves drive wizards.
+//
+// Every rule is declared on the entry that owns it, the way a workflow
+// config is authored; the lookup tables the client reads are derived from
+// these rather than written alongside them.
 const sharedOptionCriteria = [["show-options", true]];
 const approvalCriteria = [
   ["first-approval", true],
@@ -123,21 +131,6 @@ const criteriaWorkflow = {
       wizards: [{ test: "Detailed", wizard: modeWizard }],
     },
   ],
-  rules: {
-    criteriaRules: {
-      option: sharedOptionCriteria,
-      "approval-notes": approvalCriteria,
-      "first-detail": [["show-first", true]],
-      "second-detail": [["show-second", true]],
-      "conditional-tags": [["show-tags", true]],
-      "include-details": [["show-details", true]],
-      "conditional-mode": [["show-mode", true]],
-    },
-    wizardRules: {
-      "include-details": [{ test: true, wizard: detailWizard }],
-      "conditional-mode": [{ test: "Detailed", wizard: modeWizard }],
-    },
-  },
 };
 
 export { criteriaWorkflow };

@@ -48,13 +48,6 @@ const nestedCheckboxWorkflow = {
       wizards: includeDetailsWizards,
     },
   ],
-  rules: {
-    wizardRules: {
-      includeDetails: includeDetailsWizards,
-      includeDetailNotes: detailNotesWizards,
-    },
-    criteriaRules: { includeDetails: includeDetailsCriteria },
-  },
 };
 
 export { nestedCheckboxWorkflow };

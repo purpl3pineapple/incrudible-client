@@ -50,13 +50,6 @@ const invoker = {
 
 const nestedInterpolationWorkflow = {
   schema: [invoker],
-  rules: {
-    wizardRules: {
-      "invoke-interpolator": invokerWizards,
-      interpolator: destinationWizards,
-      interpolated: sourceWizards,
-    },
-  },
 };
 
 export { nestedInterpolationWorkflow };

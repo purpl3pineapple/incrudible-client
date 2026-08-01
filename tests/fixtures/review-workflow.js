@@ -1,8 +1,8 @@
 // A workflow exercising every rule family at once: a select driving a
 // wizard and carrying a footnote, a checkbox driving an alert, a modal and
-// a second wizard, and a criteria-gated field. Rule arrays are shared with
-// the entries that render them, matching how a consumer authors the two
-// halves together.
+// a second wizard, and a criteria-gated field. Every rule is declared on
+// the entry that owns it, the way a workflow config is authored; the
+// lookup tables the client reads are derived from these.
 const outcomeWizards = [
   {
     test: "Customer unavailable",
@@ -72,6 +72,7 @@ const reviewWorkflow = {
         },
       ],
       wizards: outcomeWizards,
+      footnotes: outcomeFootnotes,
     },
     {
       // Nameless on purpose: it is interpolated into the outcome's value
@@ -98,13 +99,6 @@ const reviewWorkflow = {
       criteria: contactCriteria,
     },
   ],
-  rules: {
-    alertRules: { urgent: urgentAlerts },
-    modalRules: { urgent: urgentModals },
-    wizardRules: { outcome: outcomeWizards, urgent: urgentWizards },
-    criteriaRules: { contact: contactCriteria },
-    footnoteRules: { outcome: outcomeFootnotes },
-  },
 };
 
 export { reviewWorkflow };

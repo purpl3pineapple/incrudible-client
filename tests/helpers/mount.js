@@ -1,6 +1,15 @@
+import { deriveRules } from "./rules.js";
+
 /**
  * Renders a schema into #form-controls and wires the consumer-level
  * listeners an app installs on top of the library.
+ *
+ * Rules are derived from the schema rather than passed alongside it. A
+ * server builds one from the other on every response, so the two cannot
+ * disagree in production; accepting them separately here would let a test
+ * describe a payload that cannot exist, and would stop exercising the
+ * derivation at all. Author entry-level `criteria`, `wizards`, `alerts`
+ * and the rest on the schema, exactly as a real workflow config does.
  *
  * Deliberately does NOT call syncWizards from those listeners: APP.init
  * already installs a `change` handler that does it, so adding another
@@ -11,8 +20,7 @@
  *
  * @param {import("@playwright/test").Page} page - The page to mount into.
  * @param {object} options - Mount options.
- * @param {object[]} options.schema - Schema entries to render.
- * @param {Record<string, object>} [options.rules] - Rule families to assign before rendering.
+ * @param {object[]} options.schema - Schema entries to render, carrying their own rules.
  * @param {boolean} [options.preview] - Re-render the preview on input and change.
  * @param {boolean} [options.syncOnInput] - Also sync rules on every keystroke, for tests that need it.
  * @param {boolean} [options.listeners] - Attach consumer listeners at all; false leaves only the library's own handlers, which is what a single-pass app has.
@@ -20,13 +28,7 @@
  */
 const mountSchema = async (
   page,
-  {
-    schema,
-    rules = {},
-    preview = true,
-    syncOnInput = false,
-    listeners = true,
-  },
+  { schema, preview = true, syncOnInput = false, listeners = true },
 ) =>
   page.evaluate(
     ({ schema, rules, preview, syncOnInput, listeners }) => {
@@ -69,7 +71,13 @@ const mountSchema = async (
         APP.formHelpers.renderPreview();
       }
     },
-    { schema, rules, preview, syncOnInput, listeners },
+    {
+      schema,
+      rules: deriveRules(schema),
+      preview,
+      syncOnInput,
+      listeners,
+    },
   );
 
 /**

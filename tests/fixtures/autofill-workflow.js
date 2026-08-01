@@ -3,8 +3,11 @@
 // write, a single select it can write, and a textarea and checkbox it
 // must leave alone. `source` is interpolated into the written value.
 //
-// The autofilledNote family holds two rules so only the first passing one
+// The autofilled-note entry holds two rules so only the first passing one
 // is applied.
+//
+// Rules live on the entries that own them, the way a workflow config is
+// authored; the lookup tables the client reads are derived from these.
 const autofillWorkflow = {
   schema: [
     {
@@ -25,12 +28,17 @@ const autofillWorkflow = {
       name: "conditionalNote",
       label: "Conditional Note",
       constraints: { required: true },
+      requisitions: [["mode", "Required"]],
     },
     {
       type: "text",
       id: "autofilled-note",
       name: "autofilledNote",
       label: "Autofilled Note",
+      autofills: [
+        { value: "First !{#source}", when: [["mode", "Auto"]] },
+        { value: "Ignored", when: [["mode", "Auto"]] },
+      ],
     },
     {
       type: "select",
@@ -41,32 +49,23 @@ const autofillWorkflow = {
         { label: "Choose", value: "" },
         { label: "Auto", value: "auto" },
       ],
+      autofills: [{ value: "auto", when: [["mode", "Auto"]] }],
     },
     {
       type: "textarea",
       id: "autofilled-textarea",
       name: "autofilledTextarea",
       label: "Autofilled Textarea",
+      autofills: [{ value: "Ignored", when: [["mode", "Auto"]] }],
     },
     {
       type: "checkbox",
       id: "autofilled-checkbox",
       name: "autofilledCheckbox",
       label: "Autofilled Checkbox",
+      autofills: [{ value: "true", when: [["mode", "Auto"]] }],
     },
   ],
-  rules: {
-    requisitionRules: { conditionalNote: [["mode", "Required"]] },
-    autofillRules: {
-      autofilledNote: [
-        { value: "First !{#source}", when: [["mode", "Auto"]] },
-        { value: "Ignored", when: [["mode", "Auto"]] },
-      ],
-      autofilledSelect: [{ value: "auto", when: [["mode", "Auto"]] }],
-      autofilledTextarea: [{ value: "Ignored", when: [["mode", "Auto"]] }],
-      autofilledCheckbox: [{ value: "true", when: [["mode", "Auto"]] }],
-    },
-  },
 };
 
 export { autofillWorkflow };
