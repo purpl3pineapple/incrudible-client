@@ -1952,9 +1952,32 @@ export const APP = {
    * @returns {string} ISO calendar date (`YYYY-MM-DD`).
    */
   today: () => {
-    return new Date().toLocaleDateString("en-CA", {
-      timeZone: "America/New_York",
-    });
+    /**
+     * The day's fields in America/New_York, read as parts rather than as
+     * formatted text. Asking a locale to render the ISO shape depends on
+     * that locale's data being present, which is not guaranteed — an
+     * engine missing it falls back to another pattern and silently
+     * returns a different string. Since this value is compared as a
+     * storage key, the format is assembled here instead of borrowed.
+     *
+     * @type {Record<string, string>}
+     */
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        // Pinned so a non-Gregorian calendar or non-Latin digits cannot
+        // reach the fields below.
+        calendar: "gregory",
+        numberingSystem: "latn",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+        .formatToParts(new Date())
+        .map(({ type, value }) => [type, value]),
+    );
+
+    return `${parts.year}-${parts.month}-${parts.day}`;
   },
 
   /**
@@ -3348,6 +3371,10 @@ export const APP = {
               changed = true;
             }
 
+            if (!show && !wizard.hidden) {
+              resetControls(wizard);
+            }
+
             wizard.hidden = !show;
 
             if (wizard instanceof HTMLFieldSetElement) {
@@ -3387,6 +3414,10 @@ export const APP = {
           );
           if (fieldset.hidden !== !anyShown) {
             changed = true;
+          }
+
+          if (!anyShown && !fieldset.hidden) {
+            resetControls(fieldset);
           }
 
           fieldset.hidden = !anyShown;
@@ -3526,11 +3557,23 @@ function applyCriterion(targetForm, key, criteria) {
       return;
     }
 
+    /**
+     * Whether this rule is closing over something currently open, which is
+     * the moment its values stop being reachable and have to go.
+     *
+     * @type {boolean}
+     */
+    const closing = !show && !node.hidden;
+
     if (node.hidden !== !show) {
       changed = true;
     }
 
     node.hidden = !show;
+
+    if (closing) {
+      resetControls(node);
+    }
 
     if (node instanceof HTMLFieldSetElement) {
       node.disabled = !show;
@@ -3776,12 +3819,13 @@ function dependencyPasses(key, test, targetForm) {
     /**
      * Enabled controls the form indexes under this key, by id or name.
      * Excluding disabled ones is what makes a rule fail closed when it
-     * depends on something another rule has hidden.
+     * depends on something another rule has hidden. Matched rather than
+     * read off `disabled`, which ignores a disabled fieldset ancestor.
      *
      * @type {HTMLElement[]}
      */
     const named = namedControls(key, targetForm).filter(
-      (control) => !control.disabled,
+      (control) => !control.matches(":disabled"),
     );
     /**
      * A control whose id is the key. An id match wins outright — the name
@@ -3818,7 +3862,7 @@ function dependencyPasses(key, test, targetForm) {
    * @type {HTMLElement[]}
    */
   const enabled = Array.from(targetForm?.elements ?? []).filter(
-    (control) => (control.id || control.name) && !control.disabled,
+    (control) => (control.id || control.name) && !control.matches(":disabled"),
   );
   /**
    * Distinct names among those controls, so a group sharing a name is
@@ -3980,6 +4024,50 @@ function namedControls(key, targetForm) {
   }
 
   return named instanceof HTMLElement ? [named] : Array.from(named);
+}
+
+/**
+ * Restores a control, or everything inside a container, to the state the
+ * schema authored.
+ *
+ * A rule hiding something must not leave a value behind it: the control is
+ * gone from the user's view, so a value it still holds is one nobody can
+ * see, correct, or account for — and it would reappear intact if the rule
+ * later reveals the control again. Defaults are restored rather than
+ * blanked so an entry that authored `value` or `checked` comes back as
+ * authored, which is what a form reset does.
+ *
+ * @param {HTMLElement} node - A control, or a container holding some.
+ * @returns {void}
+ */
+function resetControls(node) {
+  /**
+   * The controls to restore: the node itself when it is one, otherwise
+   * everything it contains.
+   *
+   * @type {HTMLElement[]}
+   */
+  const controls = node.matches("input, select, textarea")
+    ? [node]
+    : Array.from(node.querySelectorAll("input, select, textarea"));
+
+  controls.forEach((control) => {
+    if (control instanceof HTMLSelectElement) {
+      Array.from(control.options).forEach((option) => {
+        option.selected = option.defaultSelected;
+      });
+      return;
+    }
+
+    if (["checkbox", "radio"].includes(control.type)) {
+      control.checked = control.defaultChecked;
+      return;
+    }
+
+    // A file input rejects any value but the empty string, which is also
+    // its default, so this stays valid for every remaining type.
+    control.value = control.defaultValue;
+  });
 }
 
 /**

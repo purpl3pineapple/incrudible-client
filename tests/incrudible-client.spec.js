@@ -303,13 +303,18 @@ test("submits footnotes alongside the value that earned them", async ({
         name: "option",
         label: `${value} option`,
         value,
+        // Indexed against the option that owns it, since group members
+        // each carry their own id. An unchecked radio has no value, so the
+        // rule only earns its footnote when that option is the one picked.
+        ...(value === "second"
+          ? {
+              footnotes: [
+                { test: "second", footnote: "checked by !{#reviewer}" },
+              ],
+            }
+          : {}),
       })),
     ],
-    rules: {
-      footnoteRules: {
-        option: [{ test: "second", footnote: "checked by !{#reviewer}" }],
-      },
-    },
   });
 
   await page.locator("#reviewer").fill("Ada");
@@ -595,10 +600,16 @@ test.describe("criteria workflow", () => {
         .evaluate((form) => new FormData(form).has("detailNotes")),
     ).toBe(false);
 
+    // Re-opening brings the controller back reset, so its wizard stays
+    // closed and the detail it held is gone rather than waiting behind it.
     await page.locator("#show-details").check();
     await expect(controller).toBeVisible();
+    await expect(controller).not.toBeChecked();
+    await expect(detail).toBeHidden();
+
+    await controller.check();
     await expect(detail).toBeVisible();
-    await expect(detail).toHaveValue("Rendered nested detail");
+    await expect(detail).toHaveValue("");
   });
 
   test("composes criteria with an embedded wizard controller", async ({

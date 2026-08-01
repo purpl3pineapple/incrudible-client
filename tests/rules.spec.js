@@ -6,8 +6,15 @@ test("fails closed on a dependency naming no control at all", async ({
   app,
 }) => {
   await mountSchema(page, {
-    schema: [{ type: "text", id: "present", name: "present", label: "Present" }],
-    rules: { criteriaRules: { present: [["missing-control", true]] } },
+    schema: [
+      {
+        type: "text",
+        id: "present",
+        name: "present",
+        label: "Present",
+        criteria: [["missing-control", true]],
+      },
+    ],
   });
 
   // An unresolvable dependency hides the field rather than defaulting to
@@ -16,44 +23,194 @@ test("fails closed on a dependency naming no control at all", async ({
   expect(app.consoleWarnings).toEqual([]);
 });
 
-test("resolves a chain of dependent rules in a single sync", async ({
+test("resolves a chain of dependent criteria in a single sync", async ({
   page,
   app,
 }) => {
   await mountSchema(page, {
-    // Authored leaf-first, so the chain only settles in one pass if rules
-    // are applied in dependency order rather than the order written.
     schema: [
-      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-      { type: "text", id: "middle", name: "middle", label: "Middle" },
-      { type: "text", id: "leaf", name: "leaf", label: "Leaf" },
-    ],
-    rules: {
-      criteriaRules: {
-        leaf: [["middle", "yes"]],
-        middle: [["gate", true]],
+      {
+        type: "checkbox",
+        id: "show-details",
+        name: "showDetails",
+        label: "Show details",
       },
-    },
+      {
+        type: "select",
+        id: "detail-type",
+        name: "detailType",
+        label: "Detail type",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Expedited", value: "expedited" },
+        ],
+        criteria: [["show-details", true]],
+      },
+      {
+        type: "textarea",
+        id: "expedite-reason",
+        name: "expediteReason",
+        label: "Expedite reason",
+        // Gated on a control that is itself gated, so this only settles in
+        // one sync if rules apply in dependency order.
+        criteria: [["detail-type", "Expedited"]],
+      },
+    ],
   });
 
-  // "middle" is rendered and real — just disabled by its own rule, which is
-  // an ordinary link in a chain. Resolution fails closed on it regardless.
-  await expect(page.locator("#middle")).toBeHidden();
-  await expect(page.locator("#leaf")).toBeHidden();
+  // "detail-type" is rendered and real — just disabled by its own rule,
+  // which is an ordinary link in a chain. Resolution fails closed on it.
+  await expect(page.locator("#detail-type")).toBeHidden();
+  await expect(page.locator("#expedite-reason")).toBeHidden();
 
-  await page.locator("#gate").check();
-  await expect(page.locator("#middle")).toBeVisible();
+  await page.locator("#show-details").check();
+  await expect(page.locator("#detail-type")).toBeVisible();
 
-  await page.locator("#middle").fill("yes");
-  await page.locator("#middle").blur();
-  await expect(page.locator("#leaf")).toBeVisible();
+  await page.locator("#detail-type").selectOption("expedited");
+  await expect(page.locator("#expedite-reason")).toBeVisible();
 
   // Collapsing the root takes the whole chain with it in the same sync.
-  await page.locator("#gate").uncheck();
-  await expect(page.locator("#middle")).toBeHidden();
-  await expect(page.locator("#leaf")).toBeHidden();
+  await page.locator("#show-details").uncheck();
+  await expect(page.locator("#detail-type")).toBeHidden();
+  await expect(page.locator("#expedite-reason")).toBeHidden();
 
   expect(app.consoleWarnings).toEqual([]);
+});
+
+test("fails closed on a dependency inside a criteria-gated fieldset", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      {
+        type: "checkbox",
+        id: "requires-shipping",
+        name: "requiresShipping",
+        label: "Requires shipping",
+      },
+      {
+        type: "fieldset",
+        id: "shipping-details",
+        label: "Shipping details",
+        // A whole group can be gated, which takes its members with it.
+        criteria: [["requires-shipping", true]],
+        members: [
+          {
+            type: "select",
+            id: "shipping-method",
+            name: "shippingMethod",
+            label: "Shipping method",
+            options: [
+              { label: "Choose", value: "" },
+              { label: "Expedited", value: "expedited" },
+            ],
+          },
+        ],
+      },
+      {
+        type: "textarea",
+        id: "expedite-reason",
+        name: "expediteReason",
+        label: "Expedite reason",
+        // Depends on a control reachable only while its group is open.
+        criteria: [["shipping-method", "Expedited"]],
+      },
+    ],
+  });
+
+  await page.locator("#requires-shipping").check();
+  await page.locator("#shipping-method").selectOption("expedited");
+  await expect(page.locator("#expedite-reason")).toBeVisible();
+
+  // Closing the group must take the dependent control with it: a control
+  // reachable only through a hidden fieldset is no more available than one
+  // hidden in its own right.
+  await page.locator("#requires-shipping").uncheck();
+  await expect(page.locator("#shipping-details")).toBeHidden();
+  await expect(page.locator("#expedite-reason")).toBeHidden();
+
+  expect(app.consoleWarnings).toEqual([]);
+});
+
+test("clears what a control held once a rule hides it", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      {
+        type: "checkbox",
+        id: "show-details",
+        name: "showDetails",
+        label: "Show details",
+      },
+      {
+        type: "text",
+        id: "detail-notes",
+        name: "detailNotes",
+        label: "Detail notes",
+        criteria: [["show-details", true]],
+      },
+      {
+        type: "select",
+        id: "detail-type",
+        name: "detailType",
+        label: "Detail type",
+        options: [
+          { label: "Choose", value: "" },
+          { label: "Expedited", value: "expedited" },
+        ],
+        criteria: [["show-details", true]],
+      },
+      {
+        type: "checkbox",
+        id: "detail-urgent",
+        name: "detailUrgent",
+        label: "Urgent",
+        criteria: [["show-details", true]],
+      },
+      {
+        type: "text",
+        id: "detail-owner",
+        name: "detailOwner",
+        label: "Detail owner",
+        // An authored default comes back as authored, not blanked.
+        defaultValue: "unassigned",
+        criteria: [["show-details", true]],
+      },
+    ],
+  });
+
+  await page.locator("#show-details").check();
+  await page.locator("#detail-notes").fill("written while open");
+  await page.locator("#detail-type").selectOption("expedited");
+  await page.locator("#detail-urgent").check();
+  await page.locator("#detail-owner").fill("Ada");
+
+  // Hiding must not park a value out of sight, where nobody can see or
+  // correct it and where it would reappear intact on the way back.
+  await page.locator("#show-details").uncheck();
+  await expect(page.locator("#detail-notes")).toHaveValue("");
+  await expect(page.locator("#detail-type")).toHaveValue("");
+  await expect(page.locator("#detail-urgent")).not.toBeChecked();
+  await expect(page.locator("#detail-owner")).toHaveValue("unassigned");
+
+  // Nothing hidden contributes to submission either.
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form).keys()]),
+  ).not.toContain("detailNotes");
+  expect(
+    await page
+      .locator("#app-form")
+      .evaluate((form) => [...new FormData(form).keys()]),
+  ).not.toContain("detailOwner");
+
+  await page.locator("#show-details").check();
+  await expect(page.locator("#detail-notes")).toHaveValue("");
+  await expect(page.locator("#detail-owner")).toHaveValue("unassigned");
 });
 
 test("resolves rules keyed by a list fieldset's submission name", async ({
@@ -63,14 +220,17 @@ test("resolves rules keyed by a list fieldset's submission name", async ({
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "show-tags", name: "showTags", label: "Show tags" },
-      // The id and the name differ, so "tags" matches neither an element id
-      // nor a control name — only the fieldset's data-name.
-      { type: "list", id: "tag-list", name: "tags", label: "Tags" },
+      // A list renders as a fieldset carrying the entry's id, so a rule on
+      // it resolves to the container rather than to its rows.
+      {
+        type: "list",
+        id: "tag-list",
+        name: "tags",
+        label: "Tags",
+        criteria: [["show-tags", true]],
+        requisitions: [["show-tags", true]],
+      },
     ],
-    rules: {
-      criteriaRules: { tags: [["show-tags", true]] },
-      requisitionRules: { tags: [["show-tags", true]] },
-    },
   });
 
   const list = page.locator("#tag-list");
@@ -92,14 +252,28 @@ test("ignores autofill and requisition rules for ineligible targets", async ({
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-      { type: "checkbox", id: "flag", name: "flag", label: "Flag" },
-      { type: "image", id: "proof", name: "proof", label: "Proof" },
+      // None of these targets accept a scalar autofill value.
+      {
+        type: "checkbox",
+        id: "flag",
+        name: "flag",
+        label: "Flag",
+        autofills: [{ value: "true", when: [["gate", true]] }],
+      },
+      {
+        type: "image",
+        id: "proof",
+        name: "proof",
+        label: "Proof",
+        autofills: [{ value: "ignored", when: [["gate", true]] }],
+      },
       {
         type: "listbox",
         id: "regions",
         name: "regions",
         label: "Regions",
         options: [{ label: "North", value: "north" }],
+        autofills: [{ value: "north", when: [["gate", true]] }],
       },
       {
         type: "text",
@@ -107,21 +281,18 @@ test("ignores autofill and requisition rules for ineligible targets", async ({
         name: "off",
         label: "Disabled target",
         disabled: true,
+        autofills: [{ value: "ignored", when: [["gate", true]] }],
       },
-      { type: "list", id: "codes", name: "codes", label: "Codes" },
+      {
+        type: "list",
+        id: "codes",
+        name: "codes",
+        label: "Codes",
+        autofills: [{ value: "ignored", when: [["gate", true]] }],
+        // A fieldset is not a settable requisition target either.
+        requisitions: [["gate", true]],
+      },
     ],
-    rules: {
-      autofillRules: {
-        // None of these targets accept a scalar autofill value.
-        flag: [{ value: "true", when: [["gate", true]] }],
-        proof: [{ value: "ignored", when: [["gate", true]] }],
-        regions: [{ value: "north", when: [["gate", true]] }],
-        off: [{ value: "ignored", when: [["gate", true]] }],
-        codes: [{ value: "ignored", when: [["gate", true]] }],
-      },
-      // A fieldset is not a settable requisition target either.
-      requisitionRules: { codes: [["gate", true]] },
-    },
   });
 
   await page.locator("#gate").check();
@@ -138,13 +309,14 @@ test("skips autofill rules whose dependencies never pass", async ({ page, app })
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-      { type: "text", id: "target", name: "target", label: "Target" },
-    ],
-    rules: {
-      autofillRules: {
-        target: [{ value: "filled", when: [["gate", false]] }],
+      {
+        type: "text",
+        id: "target",
+        name: "target",
+        label: "Target",
+        autofills: [{ value: "filled", when: [["gate", false]] }],
       },
-    },
+    ],
     // This case is specifically about the rule reapplying mid-edit, which
     // only happens in an app that syncs on every keystroke.
     syncOnInput: true,
@@ -173,13 +345,14 @@ test("clears an autofill target when the rule resolves to nothing", async ({
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
-      { type: "text", id: "target", name: "target", label: "Target" },
-    ],
-    rules: {
-      autofillRules: {
-        target: [{ value: undefined, when: [["gate", true]] }],
+      {
+        type: "text",
+        id: "target",
+        name: "target",
+        label: "Target",
+        autofills: [{ value: undefined, when: [["gate", true]] }],
       },
-    },
+    ],
   });
 
   await page.locator("#target").fill("manual");
@@ -202,9 +375,14 @@ test("requires every dependency across controls sharing a name", async ({
         label: `${value} flag`,
         value,
       })),
-      { type: "text", id: "detail", name: "detail", label: "Detail" },
+      {
+        type: "text",
+        id: "detail",
+        name: "detail",
+        label: "Detail",
+        criteria: [["flags", "beta"]],
+      },
     ],
-    rules: { criteriaRules: { detail: [["flags", "beta"]] } },
   });
 
   const detail = page.locator("#detail");
@@ -229,15 +407,21 @@ test("ignores disabled controls when resolving dependencies", async ({
   await mountSchema(page, {
     schema: [
       { type: "checkbox", id: "outer", name: "outer", label: "Outer" },
-      { type: "checkbox", id: "inner", name: "inner", label: "Inner" },
-      { type: "text", id: "detail", name: "detail", label: "Detail" },
-    ],
-    rules: {
-      criteriaRules: {
-        inner: [["outer", true]],
-        detail: [["inner", true]],
+      {
+        type: "checkbox",
+        id: "inner",
+        name: "inner",
+        label: "Inner",
+        criteria: [["outer", true]],
       },
-    },
+      {
+        type: "text",
+        id: "detail",
+        name: "detail",
+        label: "Detail",
+        criteria: [["inner", true]],
+      },
+    ],
   });
 
   await page.locator("#outer").check();
@@ -289,11 +473,17 @@ test("re-reveals a chained criteria target in the same sync", async ({
   await expect(gate).toBeDisabled();
   await expect(detail).toBeHidden();
 
-  // Re-opening it must restore `detail` immediately: `gate` is enabled
-  // again and still checked, so the dependency holds.
+  // Re-opening it brings `gate` back enabled but reset, since hiding a
+  // control clears what it held. `detail` therefore stays closed until the
+  // dependency is satisfied again.
   await page.locator("#outer").check();
   await expect(gate).toBeEnabled();
-  await expect(gate).toBeChecked();
+  await expect(gate).not.toBeChecked();
+  await expect(detail).toBeHidden();
+
+  // Satisfying it re-reveals `detail` within the same sync rather than
+  // needing a further interaction to settle.
+  await gate.check();
   await expect(detail).toBeVisible();
 });
 
@@ -347,12 +537,17 @@ test("re-reveals a wizard gated by a criteria-controlled dependency", async ({
   await expect(gate).toBeDisabled();
   await expect(detail).toBeHidden();
 
-  // Restoring the dependency must bring the wizard back in this sync —
-  // the wizard pass runs before criteria re-enables `gate`, so this only
-  // holds if both are driven to a fixed point.
+  // Restoring the dependency brings `gate` back enabled but reset, so the
+  // wizard stays closed until it is satisfied again.
   await page.locator("#outer").check();
   await expect(gate).toBeEnabled();
-  await expect(gate).toBeChecked();
+  await expect(gate).not.toBeChecked();
+  await expect(detail).toBeHidden();
+
+  // Satisfying it must bring the wizard back in this sync — the wizard
+  // pass runs before criteria re-reads `gate`, so this only holds if both
+  // are driven to a fixed point.
+  await gate.check();
   await expect(detail).toBeVisible();
 });
 
@@ -374,7 +569,6 @@ test("starts a list hidden when a wizard owns it", async ({ page, app }) => {
         wizards,
       },
     ],
-    rules: { wizardRules: { "add-notes": wizards } },
     listeners: false,
   });
 
@@ -445,26 +639,32 @@ test("syncs modals only for controls that own a rule", async ({ page, app }) => 
   await mountSchema(page, {
     schema: [
       { type: "text", id: "anonymous", label: "Anonymous" },
-      { type: "checkbox", id: "watched", name: "watched", label: "Watched" },
-      { type: "checkbox", id: "unwatched", name: "unwatched", label: "Unwatched" },
-    ],
-    rules: {
-      modalRules: {
-        watched: [
+      {
+        type: "checkbox",
+        id: "watched",
+        name: "watched",
+        label: "Watched",
+        modals: [
           {
             test: true,
             modal: { type: "message", header: "Noted", message: "Recorded." },
           },
         ],
+      },
+      {
+        type: "checkbox",
+        id: "unwatched",
+        name: "unwatched",
+        label: "Unwatched",
         // A rule whose test never passes must not open anything.
-        unwatched: [
+        modals: [
           {
             test: "never",
             modal: { type: "message", header: "Never", message: "Never." },
           },
         ],
       },
-    },
+    ],
   });
 
   // A control with neither id-keyed nor name-keyed rules is skipped, and a
@@ -493,20 +693,7 @@ test("re-renders control alerts on every change", async ({ page, app }) => {
           { label: "Open", value: "open" },
           { label: "Blocked", value: "blocked" },
         ],
-        alerts: [{ test: "Blocked", alert: { variant: "warning", message: "x" } }],
-      },
-      // An alert container whose control carries no rules stays empty.
-      {
-        type: "text",
-        id: "unruled",
-        name: "unruled",
-        label: "Unruled",
-        alerts: [{ test: true, alert: { variant: "note", message: "unused" } }],
-      },
-    ],
-    rules: {
-      alertRules: {
-        status: [
+        alerts: [
           {
             test: "Blocked",
             alert: { variant: "warning", message: "Escalate this case." },
@@ -517,7 +704,18 @@ test("re-renders control alerts on every change", async ({ page, app }) => {
           },
         ],
       },
-    },
+      // A container renders for any control carrying alerts, so one whose
+      // rule never passes stays empty rather than never existing.
+      {
+        type: "text",
+        id: "unruled",
+        name: "unruled",
+        label: "Unruled",
+        alerts: [
+          { test: "never-matches", alert: { variant: "note", message: "Unused." } },
+        ],
+      },
+    ],
   });
 
   const alerts = page.locator('.control-alerts[data-control-id="status"]');
@@ -550,14 +748,11 @@ test("leaves alert containers alone when their control is gone", async ({
         id: "orphan",
         name: "orphan",
         label: "Orphan",
-        alerts: [{ test: true, alert: { variant: "note", message: "n" } }],
+        alerts: [
+          { test: true, alert: { variant: "note", message: "Present." } },
+        ],
       },
     ],
-    rules: {
-      alertRules: {
-        orphan: [{ test: true, alert: { variant: "note", message: "Present." } }],
-      },
-    },
   });
 
   await page.locator("#orphan").fill("value");

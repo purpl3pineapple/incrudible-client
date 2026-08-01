@@ -2,6 +2,28 @@ import { expect, test } from "./setup.js";
 import { mountSchema } from "./helpers/index.js";
 import { stubGoogleDocs } from "./mocks/index.js";
 
+const resourceArticles = [
+  {
+    test: "Doc",
+    article: {
+      header: "Handling *guide*",
+      resource: { type: "doc", id: "doc-123" },
+    },
+  },
+  {
+    test: "Form",
+    article: { resource: { type: "form", id: "form-123" } },
+  },
+  {
+    test: "Pdf",
+    article: { resource: { type: "pdf", id: " pdf-123 " } },
+  },
+  {
+    test: "Unsupported",
+    article: { resource: { type: "slides", id: "slides-123" } },
+  },
+];
+
 const articleSchema = [
   {
     type: "select",
@@ -15,39 +37,16 @@ const articleSchema = [
       { label: "Pdf", value: "pdf" },
       { label: "Unsupported", value: "unsupported" },
     ],
+    articles: resourceArticles,
   },
 ];
-
-const articleRules = {
-  resource: [
-    {
-      test: "Doc",
-      article: {
-        header: "Handling *guide*",
-        resource: { type: "doc", id: "doc-123" },
-      },
-    },
-    {
-      test: "Form",
-      article: { resource: { type: "form", id: "form-123" } },
-    },
-    {
-      test: "Pdf",
-      article: { resource: { type: "pdf", id: " pdf-123 " } },
-    },
-    {
-      test: "Unsupported",
-      article: { resource: { type: "slides", id: "slides-123" } },
-    },
-  ],
-};
 
 test("shows the matching article for each supported resource type", async ({
   page,
   app,
 }) => {
   await stubGoogleDocs(page);
-  await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
+  await mountSchema(page, { schema: articleSchema });
 
   const article = page.locator("#workflow-article");
   const frame = page.locator("#workflow-article-frame");
@@ -89,7 +88,7 @@ test("hides the article when no rule matches or the type is unsupported", async 
   app,
 }) => {
   await stubGoogleDocs(page);
-  await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
+  await mountSchema(page, { schema: articleSchema });
 
   await page.locator("#resource").selectOption("doc");
   await expect(page.locator("#workflow-article")).toBeVisible();
@@ -126,7 +125,7 @@ test("keeps the frame source stable across repeated syncs", async ({
   app,
 }) => {
   await stubGoogleDocs(page);
-  await mountSchema(page, { schema: articleSchema, rules: { articleRules } });
+  await mountSchema(page, { schema: articleSchema });
   await page.locator("#resource").selectOption("doc");
 
   const frame = page.locator("#workflow-article-frame");
@@ -176,7 +175,7 @@ test("reports failure when the article surface is missing", async ({
   expect(shown).toBe(false);
 });
 
-test("matches article rules keyed by control name and gated by dependencies", async ({
+test("matches an article rule gated by a dependency on another control", async ({
   page,
   app,
 }) => {
@@ -190,21 +189,23 @@ test("matches article rules keyed by control name and gated by dependencies", as
         name: "code",
         label: `${value} code`,
         value,
+        // Options in a group share a name but each carry their own id, so
+        // the rule is indexed against the option that owns it. An unchecked
+        // radio contributes no value, which is what makes the article fall
+        // away when a sibling is picked instead.
+        ...(value === "second"
+          ? {
+              articles: [
+                {
+                  test: "second",
+                  when: [["escalated", true]],
+                  article: { resource: { type: "doc", id: "escalation" } },
+                },
+              ],
+            }
+          : {}),
       })),
     ],
-    rules: {
-      articleRules: {
-        // One key, two controls sharing the name — values are collected
-        // across every match before the test runs.
-        code: [
-          {
-            test: "second",
-            when: [["escalated", true]],
-            article: { resource: { type: "doc", id: "escalation" } },
-          },
-        ],
-      },
-    },
   });
 
   await page.locator("#second-code").check();

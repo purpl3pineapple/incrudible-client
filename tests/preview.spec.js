@@ -193,7 +193,7 @@ test("skips a select that has nothing to select", async ({ page, app }) => {
   ]);
 });
 
-test("appends footnotes matched by control name and gated by dependencies", async ({
+test("appends every matching footnote, gated by dependencies", async ({
   page,
   app,
 }) => {
@@ -201,12 +201,13 @@ test("appends footnotes matched by control name and gated by dependencies", asyn
     schema: [
       { type: "text", id: "reviewer", name: "reviewer", label: "Reviewer" },
       { type: "checkbox", id: "audited", name: "audited", label: "Audited" },
-      { type: "text", id: "case-id", name: "caseId", label: "Case" },
-    ],
-    rules: {
-      footnoteRules: {
-        // Keyed by name rather than id, and both footnotes are joined.
-        caseId: [
+      {
+        type: "text",
+        id: "case-id",
+        name: "caseId",
+        label: "Case",
+        // Every rule that passes contributes, and the results are joined.
+        footnotes: [
           { test: "/^C-/", footnote: "assigned to !{#reviewer}" },
           {
             test: "/^C-/",
@@ -216,7 +217,7 @@ test("appends footnotes matched by control name and gated by dependencies", asyn
           { test: "no-match", footnote: "never shown" },
         ],
       },
-    },
+    ],
   });
 
   await page.locator("#reviewer").fill("Ada");
