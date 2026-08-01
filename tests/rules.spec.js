@@ -213,6 +213,58 @@ test("clears what a control held once a rule hides it", async ({
   await expect(page.locator("#detail-owner")).toHaveValue("unassigned");
 });
 
+test("never marks a checkbox required, however it is asked", async ({
+  page,
+  app,
+}) => {
+  await mountSchema(page, {
+    schema: [
+      { type: "checkbox", id: "gate", name: "gate", label: "Gate" },
+      // Asked for by the schema outright.
+      {
+        type: "checkbox",
+        id: "confirm-accuracy",
+        name: "confirmAccuracy",
+        label: "I confirm this is accurate",
+        constraints: { required: true },
+      },
+      // Asked for by a rule, and by one sharing a name with siblings.
+      ...["alpha", "beta"].map((value) => ({
+        type: "checkbox",
+        id: `${value}-flag`,
+        name: "flags",
+        label: `${value} flag`,
+        value,
+        requisitions: [["gate", true]],
+      })),
+      // A text control still honours both routes, so this is about the
+      // control type rather than requisitions being ignored wholesale.
+      {
+        type: "text",
+        id: "reason",
+        name: "reason",
+        label: "Reason",
+        requisitions: [["gate", true]],
+      },
+    ],
+  });
+
+  await page.locator("#gate").check();
+
+  for (const id of ["confirm-accuracy", "alpha-flag", "beta-flag"]) {
+    await expect(page.locator(`#${id}`)).not.toHaveAttribute("required", "");
+  }
+
+  await expect(page.locator("#reason")).toHaveAttribute("required", "");
+
+  // Nothing ticked, and the form still validates once the one control that
+  // can meaningfully be required is filled.
+  await page.locator("#reason").fill("checked by hand");
+  expect(
+    await page.locator("#app-form").evaluate((form) => form.checkValidity()),
+  ).toBe(true);
+});
+
 test("resolves rules keyed by a list fieldset's submission name", async ({
   page,
   app,

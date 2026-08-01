@@ -1244,30 +1244,6 @@ export const APP = {
         fieldset.hidden = true;
       }
 
-      if (v.required) {
-        fieldset.dataset.required = "true";
-      }
-
-      if (v.minLength != null) {
-        fieldset.dataset.minLength = v.minLength;
-      }
-
-      if (v.maxLength != null) {
-        fieldset.dataset.maxLength = v.maxLength;
-      }
-
-      if (v.pattern) {
-        fieldset.dataset.pattern = v.pattern;
-      }
-
-      if (v.min != null) {
-        fieldset.dataset.min = v.min;
-      }
-
-      if (v.max != null) {
-        fieldset.dataset.max = v.max;
-      }
-
       /**
        * Wrapper carrying the list's own label and controls.
        *
@@ -1321,7 +1297,10 @@ export const APP = {
           input.name = `${entry.name}_${index}`;
         }
 
-        input.required = Boolean(v.required);
+        // Rows are built here rather than through the shared path, so the
+        // same rule holds explicitly: a checkbox row reports presence and
+        // cannot meaningfully be required.
+        input.required = Boolean(v.required) && itemType !== "checkbox";
         entryLi.append(input);
 
         if (removable) {
@@ -1539,7 +1518,10 @@ export const APP = {
         element.readOnly = true;
       }
 
-      if (v.required) {
+      // A checkbox reports presence, so requiring one leaves it a single
+      // valid state and asks nothing — the flag is dropped rather than
+      // rendered, here and in the requisition sync alike.
+      if (v.required && element.type !== "checkbox") {
         element.required = true;
       }
     };
@@ -4530,6 +4512,13 @@ function syncRequisitions(targetForm) {
         target instanceof HTMLTextAreaElement
       )
     ) {
+      return;
+    }
+
+    // A checkbox reports presence, so requiring one leaves it a single
+    // valid state: every record that submits at all carries the same
+    // value, and the control asks nothing. Requisitions skip them.
+    if (target.type === "checkbox") {
       return;
     }
 

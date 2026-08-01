@@ -479,16 +479,9 @@ test("renders typed lists with their constraints on the fieldset", async ({
 
   expect(amounts).toEqual({
     className: "list w-2",
-    dataset: {
-      name: "amounts",
-      type: "number",
-      required: "true",
-      minLength: "1",
-      maxLength: "9",
-      pattern: "\\d+",
-      min: "0",
-      max: "500",
-    },
+    // The container carries identity only. Constraints live on the rows
+    // they actually validate, which is where the row builder reads them.
+    dataset: { name: "amounts", type: "number" },
     disabled: true,
     inputType: "number",
     inputId: "amounts-0",
